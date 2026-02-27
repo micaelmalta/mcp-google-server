@@ -40,7 +40,24 @@ npm install
 npm run build
 ```
 
-### 4. Configure Claude Desktop
+### 4. Configure Claude
+
+#### Claude CLI
+
+```bash
+claude mcp add google-workspace \
+  --env GOOGLE_CLIENT_ID=your_client_id_here \
+  --env GOOGLE_CLIENT_SECRET=your_client_secret_here \
+  -- node /path/to/mcp-google-server/dist/index.js
+```
+
+To verify it was added:
+
+```bash
+claude mcp list
+```
+
+#### Claude Desktop
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
