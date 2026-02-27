@@ -97,6 +97,7 @@ Returns:
   - events[].start / end: Event start/end time
   - events[].location: Event location
   - events[].attendees: List of attendees with response status
+  - events[].attachments: Attached files (e.g. Google Docs) with fileUrl and title
   - events[].html_link: Link to event in Google Calendar
   - next_page_token: Token for next page (if has_more is true)`,
       inputSchema: z.object({
@@ -113,7 +114,7 @@ Returns:
     async ({ calendar_id, time_min, time_max, query, limit, page_token, response_format }) => {
       try {
         const cal = getCalendar();
-        const res = await cal.events.list({
+        const listParams = {
           calendarId: calendar_id,
           timeMin: time_min ?? new Date().toISOString(),
           timeMax: time_max,
@@ -121,8 +122,10 @@ Returns:
           maxResults: limit,
           pageToken: page_token,
           singleEvents: true,
-          orderBy: 'startTime',
-        });
+          orderBy: 'startTime' as const,
+          supportsAttachments: true,
+        };
+        const res = await cal.events.list(listParams as Record<string, unknown>);
 
         const events = (res.data.items ?? []).map((e) => ({
           id: e.id ?? '',
@@ -141,6 +144,11 @@ Returns:
           creator: e.creator?.email ?? '',
           organizer: e.organizer?.email ?? '',
           recurring_event_id: e.recurringEventId ?? null,
+          attachments: (e.attachments ?? []).map((a) => ({
+            fileUrl: a.fileUrl ?? '',
+            title: a.title ?? '',
+            mimeType: a.mimeType ?? '',
+          })),
         }));
 
         const nextPageToken = res.data.nextPageToken ?? undefined;
@@ -154,6 +162,9 @@ Returns:
             lines.push(`- **Start**: ${formatDate(e.start)}`);
             lines.push(`- **End**: ${formatDate(e.end)}`);
             if (e.location) lines.push(`- **Location**: ${e.location}`);
+            if (e.attachments.length) {
+              lines.push(`- **Attachments**: ${e.attachments.map((a) => `[${a.title || 'Link'}](${a.fileUrl})`).join(', ')}`);
+            }
             if (e.attendees.length) lines.push(`- **Attendees**: ${e.attendees.map((a) => a.email).join(', ')}`);
             lines.push(`- **ID**: \`${e.id}\``);
             lines.push('');
@@ -185,7 +196,7 @@ Args:
   - calendar_id: Calendar ID (use 'primary' for main calendar)
   - event_id: Event ID from google_calendar_list_events
 
-Returns full event details including description, conference data, recurrence rules, and all attendees.`,
+Returns full event details including description, conference data, recurrence rules, attendees, and any attached files (e.g. Google Docs).`,
       inputSchema: z.object({
         calendar_id: z.string().default('primary').describe("Calendar ID."),
         event_id: z.string().min(1).describe('Event ID.'),
@@ -196,8 +207,21 @@ Returns full event details including description, conference data, recurrence ru
     async ({ calendar_id, event_id, response_format }) => {
       try {
         const cal = getCalendar();
-        const res = await cal.events.get({ calendarId: calendar_id, eventId: event_id });
+        const getParams = {
+          calendarId: calendar_id,
+          eventId: event_id,
+          supportsAttachments: true,
+        };
+        const res = await cal.events.get(getParams as Record<string, unknown>);
         const e = res.data;
+
+        const attachments = (e.attachments ?? []).map((a) => ({
+          fileUrl: a.fileUrl ?? '',
+          title: a.title ?? '',
+          mimeType: a.mimeType ?? '',
+          fileId: a.fileId ?? undefined,
+          iconLink: a.iconLink ?? undefined,
+        }));
 
         const event = {
           id: e.id ?? '',
@@ -218,6 +242,7 @@ Returns full event details including description, conference data, recurrence ru
           })),
           conference_data: e.conferenceData ?? null,
           recurrence: e.recurrence ?? [],
+          attachments,
         };
 
         let text: string;
@@ -230,6 +255,13 @@ Returns full event details including description, conference data, recurrence ru
           ];
           if (event.location) lines.push(`- **Location**: ${event.location}`);
           if (event.description) lines.push(`\n**Description:** ${event.description}`);
+          if (event.attachments.length) {
+            lines.push('\n**Attachments:**');
+            for (const a of event.attachments) {
+              const label = a.title || a.fileUrl || 'Attachment';
+              lines.push(`  - [${label}](${a.fileUrl})`);
+            }
+          }
           if (event.attendees.length) {
             lines.push('\n**Attendees:**');
             for (const a of event.attendees) {
