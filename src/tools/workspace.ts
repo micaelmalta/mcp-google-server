@@ -854,3 +854,38 @@ function extractDocText(doc: {
 }): string {
   return extractTabText({ documentTab: { body: doc.body ?? null } });
 }
+
+export interface TabData {
+  tab_id: string;
+  title: string;
+  index: number;
+  text_content: string;
+}
+
+/**
+ * Formats tabs data into a markdown string.
+ * - Single tab: returns content directly (no header)
+ * - Multiple tabs: prefixes each with "## Tab: {title}"
+ * - With filter: returns only the matching tab, or an error message
+ */
+export function formatDocTabs(tabs: TabData[], tabFilter?: string): string {
+  if (tabFilter) {
+    const lower = tabFilter.toLowerCase();
+    const match = tabs.find(
+      (t) => t.title.toLowerCase() === lower || t.tab_id === tabFilter
+    );
+    if (!match) {
+      const available = tabs.map((t) => `${t.title} (${t.tab_id})`).join(', ');
+      return `Tab "${tabFilter}" not found. Available tabs: ${available}`;
+    }
+    return match.text_content;
+  }
+
+  if (tabs.length === 1) {
+    return tabs[0].text_content;
+  }
+
+  return tabs
+    .map((t) => `## Tab: ${t.title}\n${t.text_content}`)
+    .join('\n\n');
+}
