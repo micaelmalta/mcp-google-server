@@ -811,7 +811,35 @@ export function formatDeleteSheetResponse(spreadsheetId: string, sheetId: number
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Extracts plain text from a Google Docs document body.
+ * Extracts plain text from a single Google Docs tab.
+ */
+export function extractTabText(tab: {
+  documentTab?: {
+    body?: {
+      content?: Array<{
+        paragraph?: {
+          elements?: Array<{
+            textRun?: { content?: string | null } | null;
+          }> | null;
+        } | null;
+      }> | null;
+    } | null;
+  } | null;
+}): string {
+  const lines: string[] = [];
+  for (const element of tab.documentTab?.body?.content ?? []) {
+    if (element.paragraph) {
+      const text = (element.paragraph.elements ?? [])
+        .map((el) => el.textRun?.content ?? '')
+        .join('');
+      if (text.trim()) lines.push(text);
+    }
+  }
+  return lines.join('').trim();
+}
+
+/**
+ * Extracts plain text from a Google Docs document body (legacy single-tab path).
  */
 function extractDocText(doc: {
   body?: {
@@ -824,16 +852,5 @@ function extractDocText(doc: {
     }> | null;
   } | null;
 }): string {
-  const lines: string[] = [];
-
-  for (const element of doc.body?.content ?? []) {
-    if (element.paragraph) {
-      const text = (element.paragraph.elements ?? [])
-        .map((el) => el.textRun?.content ?? '')
-        .join('');
-      if (text.trim()) lines.push(text);
-    }
-  }
-
-  return lines.join('').trim();
+  return extractTabText({ documentTab: { body: doc.body ?? null } });
 }
