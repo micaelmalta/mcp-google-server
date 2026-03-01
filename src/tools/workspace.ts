@@ -87,8 +87,10 @@ Args:
   - tab: Optional tab title or tab ID to focus on a single tab. If omitted, all tabs are returned.
   - response_format: 'markdown' or 'json'
 
-Returns the document title and content. When multiple tabs exist, each is labeled with its title.
-For 'json' format, returns a structured tabs array with tab_id, title, index, and text_content per tab.`,
+Returns the document title and content. Top-level tabs are fetched; nested child tabs are not included.
+When multiple tabs exist, each is labeled with its title. When 'tab' is specified and not found, returns an error.
+For 'json' format, returns a structured tabs array with tab_id, title, index, and text_content per tab.
+  - response_format: 'markdown' (default) or 'json'`,
       inputSchema: z.object({
         document_id: z.string().min(1).describe('Document ID.'),
         tab: z.string().optional().describe('Tab title or tab ID to focus on. Omit to return all tabs.'),
@@ -126,11 +128,18 @@ For 'json' format, returns a structured tabs array with tab_id, title, index, an
 
         const formattedContent = formatDocTabs(tabsData, tab);
 
+        // Return isError if the requested tab was not found
+        if (tab && formattedContent.startsWith(`Tab "${tab}" not found`)) {
+          return { isError: true, content: [{ type: 'text', text: formattedContent }] };
+        }
+
+        const effectiveTabs = tab
+          ? tabsData.filter((t) => t.title.toLowerCase() === tab.toLowerCase() || t.tab_id === tab)
+          : tabsData;
+
         let text: string;
         if (response_format === ResponseFormat.MARKDOWN) {
-          const titleSuffix = tab
-            ? tabsData.find((t) => t.title.toLowerCase() === tab.toLowerCase() || t.tab_id === tab)?.title
-            : undefined;
+          const titleSuffix = effectiveTabs.length === 1 && tab ? effectiveTabs[0].title : undefined;
           const heading = titleSuffix
             ? `# ${doc.title ?? 'Untitled'} > ${titleSuffix}`
             : `# ${doc.title ?? 'Untitled'}`;
@@ -141,7 +150,7 @@ For 'json' format, returns a structured tabs array with tab_id, title, index, an
               document_id: doc.documentId,
               title: doc.title,
               revision_id: doc.revisionId,
-              tabs: tabsData,
+              tabs: effectiveTabs,
             },
             null,
             2
@@ -153,7 +162,7 @@ For 'json' format, returns a structured tabs array with tab_id, title, index, an
           structuredContent: {
             document_id: doc.documentId,
             title: doc.title,
-            tabs: tabsData,
+            tabs: effectiveTabs,
           },
         };
       } catch (error) {
@@ -870,23 +879,6 @@ export function extractTabText(tab: {
     }
   }
   return lines.join('').trim();
-}
-
-/**
- * Extracts plain text from a Google Docs document body (legacy single-tab path).
- */
-function extractDocText(doc: {
-  body?: {
-    content?: Array<{
-      paragraph?: {
-        elements?: Array<{
-          textRun?: { content?: string | null } | null;
-        }> | null;
-      } | null;
-    }> | null;
-  } | null;
-}): string {
-  return extractTabText({ documentTab: { body: doc.body ?? null } });
 }
 
 export interface TabData {
