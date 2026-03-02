@@ -1,3 +1,7 @@
+#AI Docs
+.mcp.json
+docs/plans/
+
 # Dependencies
 node_modules/
 

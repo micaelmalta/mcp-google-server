@@ -80,38 +80,85 @@ Returns:
     'google_docs_get',
     {
       title: 'Get Google Doc Content',
-      description: `Retrieves the text content and structure of a Google Docs document.
+      description: `Retrieves the text content of a Google Docs document, including all tabs.
 
 Args:
   - document_id: Document ID (from google_docs_create or google_drive_search_files)
+  - tab: Optional tab title or tab ID to focus on a single tab. If omitted, all tabs are returned.
   - response_format: 'markdown' or 'json'
 
-Returns the document title and full plain text content. For 'json' format, also returns the raw document structure with paragraphs, styles, and inline elements.`,
+Returns the document title and content. Top-level tabs are fetched; nested child tabs are not included.
+When multiple tabs exist, each is labeled with its title. When 'tab' is specified and not found, returns an error.
+For 'json' format, returns a structured tabs array with tab_id, title, index, and text_content per tab.`,
       inputSchema: z.object({
         document_id: z.string().min(1).describe('Document ID.'),
+        tab: z.string().optional().describe('Tab title or tab ID to focus on. Omit to return all tabs.'),
         response_format: z.nativeEnum(ResponseFormat).default(ResponseFormat.MARKDOWN),
       }).strict(),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async ({ document_id, response_format }) => {
+    async ({ document_id, tab, response_format }) => {
       try {
         const docs = getDocs();
-        const res = await docs.documents.get({ documentId: document_id });
+        const res = await docs.documents.get({
+          documentId: document_id,
+          includeTabsContent: true,
+        });
         const doc = res.data;
 
-        // Extract plain text from the document body
-        const textContent = extractDocText(doc);
+        // Build tabs array from API response
+        const rawTabs = doc.tabs ?? [];
+        const tabsData: TabData[] = rawTabs.length > 0
+          ? rawTabs.map((t, i) => ({
+              tab_id: t.tabProperties?.tabId ?? `tab_${i}`,
+              title: t.tabProperties?.title ?? `Tab ${i + 1}`,
+              index: t.tabProperties?.index ?? i,
+              text_content: extractTabText(t),
+            }))
+          : [
+              // Fallback for docs that don't return tabs (older docs / no tabs)
+              {
+                tab_id: 'tab_0',
+                title: 'Main',
+                index: 0,
+                text_content: extractTabText({ documentTab: { body: doc.body ?? null } }),
+              },
+            ];
+
+        // Resolve effective tabs before formatting
+        const effectiveTabs = tab
+          ? (() => {
+              const match = tabsData.find(
+                (t) => t.title.toLowerCase() === tab.toLowerCase() || t.tab_id === tab
+              );
+              return match ? [match] : [];
+            })()
+          : tabsData;
+
+        if (tab && effectiveTabs.length === 0) {
+          const available = tabsData.map((t) => `${t.title} (${t.tab_id})`).join(', ');
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Tab "${tab}" not found. Available tabs: ${available}` }],
+          };
+        }
+
+        const formattedContent = formatDocTabs(effectiveTabs);
 
         let text: string;
         if (response_format === ResponseFormat.MARKDOWN) {
-          text = `# ${doc.title ?? 'Untitled'}\n\n${textContent}`;
+          const titleSuffix = effectiveTabs.length === 1 && tab ? effectiveTabs[0].title : undefined;
+          const heading = titleSuffix
+            ? `# ${doc.title ?? 'Untitled'} > ${titleSuffix}`
+            : `# ${doc.title ?? 'Untitled'}`;
+          text = `${heading}\n\n${formattedContent}`;
         } else {
           text = JSON.stringify(
             {
               document_id: doc.documentId,
               title: doc.title,
-              text_content: textContent,
               revision_id: doc.revisionId,
+              tabs: effectiveTabs,
             },
             null,
             2
@@ -120,7 +167,11 @@ Returns the document title and full plain text content. For 'json' format, also 
 
         return {
           content: [{ type: 'text', text: truncateIfNeeded(text) }],
-          structuredContent: { document_id: doc.documentId, title: doc.title, text_content: textContent },
+          structuredContent: {
+            document_id: doc.documentId,
+            title: doc.title,
+            tabs: effectiveTabs,
+          },
         };
       } catch (error) {
         return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
@@ -811,22 +862,23 @@ export function formatDeleteSheetResponse(spreadsheetId: string, sheetId: number
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Extracts plain text from a Google Docs document body.
+ * Extracts plain text from a single Google Docs tab.
  */
-function extractDocText(doc: {
-  body?: {
-    content?: Array<{
-      paragraph?: {
-        elements?: Array<{
-          textRun?: { content?: string | null } | null;
-        }> | null;
-      } | null;
-    }> | null;
+export function extractTabText(tab: {
+  documentTab?: {
+    body?: {
+      content?: Array<{
+        paragraph?: {
+          elements?: Array<{
+            textRun?: { content?: string | null } | null;
+          }> | null;
+        } | null;
+      }> | null;
+    } | null;
   } | null;
 }): string {
   const lines: string[] = [];
-
-  for (const element of doc.body?.content ?? []) {
+  for (const element of tab.documentTab?.body?.content ?? []) {
     if (element.paragraph) {
       const text = (element.paragraph.elements ?? [])
         .map((el) => el.textRun?.content ?? '')
@@ -834,6 +886,40 @@ function extractDocText(doc: {
       if (text.trim()) lines.push(text);
     }
   }
-
   return lines.join('').trim();
+}
+
+export interface TabData {
+  tab_id: string;
+  title: string;
+  index: number;
+  text_content: string;
+}
+
+/**
+ * Formats tabs data into a markdown string.
+ * - Single tab: returns content directly (no header)
+ * - Multiple tabs: prefixes each with "## Tab: {title}"
+ * - With filter: returns only the matching tab, or an error message
+ */
+export function formatDocTabs(tabs: TabData[], tabFilter?: string): string {
+  if (tabFilter) {
+    const lower = tabFilter.toLowerCase();
+    const match = tabs.find(
+      (t) => t.title.toLowerCase() === lower || t.tab_id === tabFilter
+    );
+    if (!match) {
+      const available = tabs.map((t) => `${t.title} (${t.tab_id})`).join(', ');
+      return `Tab "${tabFilter}" not found. Available tabs: ${available}`;
+    }
+    return match.text_content;
+  }
+
+  if (tabs.length === 1) {
+    return tabs[0].text_content;
+  }
+
+  return tabs
+    .map((t) => `## Tab: ${t.title}\n${t.text_content}`)
+    .join('\n\n');
 }
