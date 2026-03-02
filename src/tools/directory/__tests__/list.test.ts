@@ -47,6 +47,25 @@ describe('google_directory_list tool', () => {
     expect(result.content[0].text).toBe('No people found in directory.');
   });
 
+  it('returns JSON when response_format is json', async () => {
+    mockListDirectoryPeople.mockResolvedValue({
+      data: {
+        people: [makePerson({ names: [{ displayName: 'Alice' }] })],
+        nextPageToken: 'next',
+      },
+    });
+
+    const handler = registeredTools.get('google_directory_list')!;
+    const result = (await handler({ limit: 10, response_format: 'json' })) as {
+      content: { type: string; text: string }[];
+    };
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.people).toHaveLength(1);
+    expect(parsed.next_page_token).toBe('next');
+    expect(parsed.has_more).toBe(true);
+  });
+
   it('returns error on API failure', async () => {
     mockListDirectoryPeople.mockRejectedValue(new Error('forbidden'));
 
