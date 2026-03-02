@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseHeaders, quoteSheetName, formatAddSheetResponse, formatDeleteSheetResponse } from '../sheets.js';
+import {
+  parseHeaders,
+  quoteSheetName,
+  formatAddSheetResponse,
+  formatDeleteSheetResponse,
+} from '../shared.js';
 
 describe('parseHeaders', () => {
   it('splits comma-separated headers and trims whitespace', () => {
