@@ -4,7 +4,11 @@
   "description": "MCP server for Google Workspace APIs (Calendar, Gmail, Drive, Docs, Sheets, Slides) with OAuth2",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "google-workspace-mcp-server": "dist/index.js"
+  },
   "scripts": {
+    "prepare": "npm run build",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
