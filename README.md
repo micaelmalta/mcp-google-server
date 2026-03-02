@@ -15,6 +15,7 @@ An MCP (Model Context Protocol) server that connects Claude to your Google Works
    - Google Docs API
    - Google Sheets API
    - Google Slides API
+   - Google People API
 4. Go to **Credentials** → **Create Credentials** → **OAuth client ID**
 5. Application type: **Web application**
 6. Add Authorized redirect URI: `http://localhost:8080/callback`
@@ -27,11 +28,14 @@ An MCP (Model Context Protocol) server that connects Claude to your Google Works
 3. Add your email as a test user
 4. Add the following scopes:
    - `https://www.googleapis.com/auth/calendar`
-   - `https://mail.google.com/`
-   - `https://www.googleapis.com/auth/drive`
    - `https://www.googleapis.com/auth/documents`
    - `https://www.googleapis.com/auth/spreadsheets`
    - `https://www.googleapis.com/auth/presentations`
+   - `https://www.googleapis.com/auth/drive`
+   - `https://www.googleapis.com/auth/gmail.readonly`
+   - `https://mail.google.com/`
+   - `https://www.googleapis.com/auth/contacts.readonly`
+   - `https://www.googleapis.com/auth/directory.readonly`
 
 ### 3. Install and Build
 
