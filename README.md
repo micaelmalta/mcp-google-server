@@ -101,6 +101,8 @@ Open the URL it returns, sign in with Google, and grant permissions. Tokens are 
 | `google_calendar_get_event` | Get full event details |
 | `google_calendar_create_event` | Create a new event with attendees |
 | `google_calendar_update_event` | Update event title, time, attendees |
+| `google_calendar_approve_event` | Accept a calendar event invitation |
+| `google_calendar_decline_event` | Decline a calendar event invitation |
 | `google_calendar_delete_event` | Delete an event |
 | `google_calendar_get_freebusy` | Check free/busy for scheduling |
 
@@ -142,12 +144,23 @@ Open the URL it returns, sign in with Google, and grant permissions. Tokens are 
 | `google_sheets_get_values` | Read cell values (A1 notation) |
 | `google_sheets_update_values` | Write/overwrite cell values |
 | `google_sheets_append_values` | Append new rows |
+| `google_sheets_add_sheet` | Add a new tab/sheet to a spreadsheet |
+| `google_sheets_delete_sheet` | Delete a tab/sheet from a spreadsheet |
 
 ### Google Slides
 | Tool | Description |
 |------|-------------|
 | `google_slides_create` | Create a new presentation |
 | `google_slides_get` | Get slides and their text content |
+| `google_slides_append_slides` | Add slides to an existing presentation |
+
+### Google Directory & Contacts
+| Tool | Description |
+|------|-------------|
+| `google_directory_list` | List people in your Google Workspace domain directory |
+| `google_directory_search` | Search your domain directory by name or email |
+| `google_contacts_list` | List your personal Google contacts |
+| `google_contacts_search` | Search your personal Google contacts by name |
 
 ---
 
