@@ -39,6 +39,12 @@ An MCP (Model Context Protocol) server that connects Claude to your Google Works
 
 ### 3. Install and Build
 
+**Option A — Run directly from GitHub (no local clone needed):**
+
+Skip this step entirely. Use `npx github:micaelmalta/mcp-google-server` as the command in step 4 below. npm will download, install, and build the server automatically on first run.
+
+**Option B — Local install:**
+
 ```bash
 npm install
 npm run build
@@ -48,6 +54,15 @@ npm run build
 
 #### Claude CLI
 
+From GitHub (no local clone):
+```bash
+claude mcp add google-workspace \
+  --env GOOGLE_CLIENT_ID=your_client_id_here \
+  --env GOOGLE_CLIENT_SECRET=your_client_secret_here \
+  -- npx -y github:micaelmalta/mcp-google-server
+```
+
+From local install:
 ```bash
 claude mcp add google-workspace \
   --env GOOGLE_CLIENT_ID=your_client_id_here \
@@ -65,6 +80,23 @@ claude mcp list
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
+From GitHub (no local clone):
+```json
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "npx",
+      "args": ["-y", "github:micaelmalta/mcp-google-server"],
+      "env": {
+        "GOOGLE_CLIENT_ID": "your_client_id_here",
+        "GOOGLE_CLIENT_SECRET": "your_client_secret_here"
+      }
+    }
+  }
+}
+```
+
+From local install:
 ```json
 {
   "mcpServers": {
