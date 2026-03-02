@@ -217,7 +217,7 @@ Returns:
         const spreadsheetId = createRes.data.spreadsheetId!;
 
         if (headers) {
-          const headerValues = headers.split(',').map((h) => h.trim());
+          const headerValues = parseHeaders(headers);
           await sheets.spreadsheets.values.update({
             spreadsheetId,
             range: `${sheet_name}!A1`,
@@ -427,6 +427,105 @@ Args:
             updated_range: res.data.updates?.updatedRange,
             updated_rows: res.data.updates?.updatedRows,
           },
+        };
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
+      }
+    }
+  );
+
+  // ─── google_sheets_add_sheet ──────────────────────────────────────────────
+  server.registerTool(
+    'google_sheets_add_sheet',
+    {
+      title: 'Add a Tab to a Google Sheet',
+      description: `Creates a new tab (sheet) within an existing Google Sheets spreadsheet.
+
+Args:
+  - spreadsheet_id: Spreadsheet ID (from google_sheets_create or Google Drive)
+  - title: Name for the new tab (required)
+  - headers: Comma-separated column headers to add as the first row
+
+Returns:
+  - sheet_id: Numeric ID of the new sheet
+  - title: Name of the new tab
+  - web_view_link: URL to open the spreadsheet`,
+      inputSchema: z.object({
+        spreadsheet_id: z.string().min(1).describe('Spreadsheet ID.'),
+        title: z.string().min(1).describe('Name for the new tab.'),
+        headers: z.string().optional().describe("Comma-separated column headers (e.g., 'Name,Email,Date')."),
+      }).strict(),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    async ({ spreadsheet_id, title, headers }) => {
+      try {
+        const sheets = getSheets();
+
+        const res = await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: spreadsheet_id,
+          requestBody: {
+            requests: [{ addSheet: { properties: { title } } }],
+          },
+        });
+
+        const newSheet = res.data.replies?.[0]?.addSheet;
+        const sheetId = newSheet?.properties?.sheetId ?? 0;
+
+        if (headers) {
+          const headerValues = parseHeaders(headers);
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: spreadsheet_id,
+            range: `${title}!A1`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [headerValues] },
+          });
+        }
+
+        const response = formatAddSheetResponse(spreadsheet_id, title, sheetId);
+
+        return {
+          content: [{ type: 'text', text: response.text }],
+          structuredContent: response.structuredContent,
+        };
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
+      }
+    }
+  );
+
+  // ─── google_sheets_delete_sheet ───────────────────────────────────────────
+  server.registerTool(
+    'google_sheets_delete_sheet',
+    {
+      title: 'Delete a Tab from a Google Sheet',
+      description: `Deletes a tab (sheet) from an existing Google Sheets spreadsheet.
+
+Args:
+  - spreadsheet_id: Spreadsheet ID (from google_sheets_create or Google Drive)
+  - sheet_id: Numeric sheet ID of the tab to delete (from google_sheets_add_sheet or the spreadsheet URL's gid parameter)
+
+Note: You cannot delete the last remaining tab in a spreadsheet.`,
+      inputSchema: z.object({
+        spreadsheet_id: z.string().min(1).describe('Spreadsheet ID.'),
+        sheet_id: z.number().int().describe('Numeric sheet ID of the tab to delete.'),
+      }).strict(),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    },
+    async ({ spreadsheet_id, sheet_id }) => {
+      try {
+        const sheets = getSheets();
+
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: spreadsheet_id,
+          requestBody: {
+            requests: [{ deleteSheet: { sheetId: sheet_id } }],
+          },
+        });
+
+        const response = formatDeleteSheetResponse(spreadsheet_id, sheet_id);
+
+        return {
+          content: [{ type: 'text', text: response.text }],
         };
       } catch (error) {
         return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
@@ -656,6 +755,36 @@ Returns:
       }
     }
   );
+}
+
+// ─── Exported Helpers (testable) ──────────────────────────────────────────────
+
+/**
+ * Parses a comma-separated headers string into a trimmed array.
+ */
+export function parseHeaders(headers: string): string[] {
+  return headers.split(',').map((h) => h.trim());
+}
+
+/**
+ * Builds the web view link and structured response for a newly added sheet.
+ */
+export function formatAddSheetResponse(spreadsheetId: string, title: string, sheetId: number) {
+  const webViewLink = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId}`;
+  return {
+    text: `Tab created: **${title}**\n- Sheet ID: \`${sheetId}\`\n- [Open Spreadsheet](${webViewLink})`,
+    structuredContent: { sheet_id: sheetId, title, spreadsheet_id: spreadsheetId, web_view_link: webViewLink },
+  };
+}
+
+/**
+ * Builds the response text for a deleted sheet.
+ */
+export function formatDeleteSheetResponse(spreadsheetId: string, sheetId: number) {
+  const webViewLink = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+  return {
+    text: `Tab with sheet ID \`${sheetId}\` deleted.\n- [Open Spreadsheet](${webViewLink})`,
+  };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
