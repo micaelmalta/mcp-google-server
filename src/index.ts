@@ -19,6 +19,7 @@ import { registerCalendarTools } from './tools/calendar.js';
 import { registerGmailTools } from './tools/gmail.js';
 import { registerDriveTools } from './tools/drive.js';
 import { registerWorkspaceTools } from './tools/workspace.js';
+import { registerDirectoryTools } from './tools/directory.js';
 
 const server = new McpServer({
   name: 'google-workspace-mcp-server',
@@ -31,6 +32,7 @@ registerCalendarTools(server);
 registerGmailTools(server);
 registerDriveTools(server);
 registerWorkspaceTools(server);
+registerDirectoryTools(server);
 
 async function main(): Promise<void> {
   // Validate required env vars on startup (warn only — auth tools provide better errors)
