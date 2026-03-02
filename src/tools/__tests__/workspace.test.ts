@@ -46,7 +46,7 @@ describe('formatAddSheetResponse', () => {
     );
     expect(result.structuredContent).toEqual({
       sheet_id: 42,
-      title: 'Meetings',
+      sheet_name: 'Meetings',
       spreadsheet_id: 'abc123',
       web_view_link: 'https://docs.google.com/spreadsheets/d/abc123/edit#gid=42',
     });
@@ -59,11 +59,11 @@ describe('formatAddSheetResponse', () => {
     expect(result.structuredContent.web_view_link).toContain('#gid=0');
   });
 
-  it('handles special characters in title', () => {
+  it('handles special characters in sheet name', () => {
     const result = formatAddSheetResponse('id1', 'Q1 2026 — Revenue', 99);
 
     expect(result.text).toContain('**Q1 2026 — Revenue**');
-    expect(result.structuredContent.title).toBe('Q1 2026 — Revenue');
+    expect(result.structuredContent.sheet_name).toBe('Q1 2026 — Revenue');
   });
 });
 

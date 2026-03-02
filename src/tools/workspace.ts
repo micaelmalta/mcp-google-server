@@ -790,11 +790,11 @@ export function quoteSheetName(name: string): string {
 /**
  * Builds the web view link and structured response for a newly added sheet.
  */
-export function formatAddSheetResponse(spreadsheetId: string, title: string, sheetId: number) {
+export function formatAddSheetResponse(spreadsheetId: string, sheetName: string, sheetId: number) {
   const webViewLink = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId}`;
   return {
-    text: `Tab created: **${title}**\n- Sheet ID: \`${sheetId}\`\n- [Open Spreadsheet](${webViewLink})`,
-    structuredContent: { sheet_id: sheetId, title, spreadsheet_id: spreadsheetId, web_view_link: webViewLink },
+    text: `Tab created: **${sheetName}**\n- Sheet ID: \`${sheetId}\`\n- [Open Spreadsheet](${webViewLink})`,
+    structuredContent: { sheet_id: sheetId, sheet_name: sheetName, spreadsheet_id: spreadsheetId, web_view_link: webViewLink },
   };
 }
 
