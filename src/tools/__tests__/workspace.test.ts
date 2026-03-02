@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseHeaders, formatAddSheetResponse, formatDeleteSheetResponse } from '../workspace.js';
+import { parseHeaders, quoteSheetName, formatAddSheetResponse, formatDeleteSheetResponse } from '../workspace.js';
 
 describe('parseHeaders', () => {
   it('splits comma-separated headers and trims whitespace', () => {
@@ -16,6 +16,24 @@ describe('parseHeaders', () => {
 
   it('trims leading and trailing spaces on each header', () => {
     expect(parseHeaders('  First ,  Second  , Third  ')).toEqual(['First', 'Second', 'Third']);
+  });
+});
+
+describe('quoteSheetName', () => {
+  it('wraps a simple name in single quotes', () => {
+    expect(quoteSheetName('Sheet1')).toBe("'Sheet1'");
+  });
+
+  it('wraps a name with spaces in single quotes', () => {
+    expect(quoteSheetName('Q1 Revenue')).toBe("'Q1 Revenue'");
+  });
+
+  it('escapes embedded single quotes by doubling them', () => {
+    expect(quoteSheetName("John's Data")).toBe("'John''s Data'");
+  });
+
+  it('handles names with special characters', () => {
+    expect(quoteSheetName('Data — 2026')).toBe("'Data — 2026'");
   });
 });
 

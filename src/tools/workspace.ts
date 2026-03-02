@@ -220,7 +220,7 @@ Returns:
           const headerValues = parseHeaders(headers);
           await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `${sheet_name}!A1`,
+            range: `${quoteSheetName(sheet_name)}!A1`,
             valueInputOption: 'USER_ENTERED',
             requestBody: { values: [headerValues] },
           });
@@ -468,14 +468,27 @@ Returns:
           },
         });
 
-        const newSheet = res.data.replies?.[0]?.addSheet;
-        const sheetId = newSheet?.properties?.sheetId ?? 0;
+        let sheetId = res.data.replies?.[0]?.addSheet?.properties?.sheetId;
+
+        if (sheetId == null) {
+          const metadata = await sheets.spreadsheets.get({
+            spreadsheetId: spreadsheet_id,
+            includeGridData: false,
+          });
+          sheetId = metadata.data.sheets?.find(
+            (s) => s.properties?.title === title
+          )?.properties?.sheetId;
+        }
+
+        if (sheetId == null) {
+          throw new Error('Unable to determine sheetId for newly created sheet.');
+        }
 
         if (headers) {
           const headerValues = parseHeaders(headers);
           await sheets.spreadsheets.values.update({
             spreadsheetId: spreadsheet_id,
-            range: `${title}!A1`,
+            range: `${quoteSheetName(title)}!A1`,
             valueInputOption: 'USER_ENTERED',
             requestBody: { values: [headerValues] },
           });
@@ -764,6 +777,14 @@ Returns:
  */
 export function parseHeaders(headers: string): string[] {
   return headers.split(',').map((h) => h.trim());
+}
+
+/**
+ * Wraps a sheet name in single quotes for safe A1 notation.
+ * Escapes any embedded single quotes by doubling them.
+ */
+export function quoteSheetName(name: string): string {
+  return `'${name.replace(/'/g, "''")}'`;
 }
 
 /**
