@@ -18,7 +18,9 @@ import { registerAuthTools } from './tools/auth.js';
 import { registerCalendarTools } from './tools/calendar.js';
 import { registerGmailTools } from './tools/gmail.js';
 import { registerDriveTools } from './tools/drive.js';
-import { registerWorkspaceTools } from './tools/workspace.js';
+import { registerDocsTools } from './tools/docs.js';
+import { registerSheetsTools } from './tools/sheets.js';
+import { registerSlidesTools } from './tools/slides.js';
 import { registerDirectoryTools } from './tools/directory.js';
 
 const server = new McpServer({
@@ -31,7 +33,9 @@ registerAuthTools(server);
 registerCalendarTools(server);
 registerGmailTools(server);
 registerDriveTools(server);
-registerWorkspaceTools(server);
+registerDocsTools(server);
+registerSheetsTools(server);
+registerSlidesTools(server);
 registerDirectoryTools(server);
 
 async function main(): Promise<void> {
