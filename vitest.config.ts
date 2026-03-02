@@ -5,4 +5,7 @@ export default defineConfig({
     environment: 'node',
     exclude: ['dist/**', 'node_modules/**'],
   },
+  resolve: {
+    conditions: ['node'],
+  },
 });

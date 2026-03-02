@@ -89,8 +89,7 @@ Args:
 
 Returns the document title and content. Top-level tabs are fetched; nested child tabs are not included.
 When multiple tabs exist, each is labeled with its title. When 'tab' is specified and not found, returns an error.
-For 'json' format, returns a structured tabs array with tab_id, title, index, and text_content per tab.
-  - response_format: 'markdown' (default) or 'json'`,
+For 'json' format, returns a structured tabs array with tab_id, title, index, and text_content per tab.`,
       inputSchema: z.object({
         document_id: z.string().min(1).describe('Document ID.'),
         tab: z.string().optional().describe('Tab title or tab ID to focus on. Omit to return all tabs.'),
@@ -126,16 +125,25 @@ For 'json' format, returns a structured tabs array with tab_id, title, index, an
               },
             ];
 
-        const formattedContent = formatDocTabs(tabsData, tab);
+        // Resolve effective tabs before formatting
+        const effectiveTabs = tab
+          ? (() => {
+              const match = tabsData.find(
+                (t) => t.title.toLowerCase() === tab.toLowerCase() || t.tab_id === tab
+              );
+              return match ? [match] : [];
+            })()
+          : tabsData;
 
-        // Return isError if the requested tab was not found
-        if (tab && formattedContent.startsWith(`Tab "${tab}" not found`)) {
-          return { isError: true, content: [{ type: 'text', text: formattedContent }] };
+        if (tab && effectiveTabs.length === 0) {
+          const available = tabsData.map((t) => `${t.title} (${t.tab_id})`).join(', ');
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Tab "${tab}" not found. Available tabs: ${available}` }],
+          };
         }
 
-        const effectiveTabs = tab
-          ? tabsData.filter((t) => t.title.toLowerCase() === tab.toLowerCase() || t.tab_id === tab)
-          : tabsData;
+        const formattedContent = formatDocTabs(effectiveTabs);
 
         let text: string;
         if (response_format === ResponseFormat.MARKDOWN) {
