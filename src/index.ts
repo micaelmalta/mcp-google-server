@@ -14,14 +14,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { registerAuthTools } from './tools/auth.js';
-import { registerCalendarTools } from './tools/calendar.js';
-import { registerGmailTools } from './tools/gmail.js';
-import { registerDriveTools } from './tools/drive.js';
-import { registerDocsTools } from './tools/docs.js';
-import { registerSheetsTools } from './tools/sheets.js';
-import { registerSlidesTools } from './tools/slides.js';
-import { registerDirectoryTools } from './tools/directory.js';
+import { registerAuthTools } from './tools/auth/index.js';
+import { registerCalendarTools } from './tools/calendar/index.js';
+import { registerGmailTools } from './tools/gmail/index.js';
+import { registerDriveTools } from './tools/drive/index.js';
+import { registerDocsTools } from './tools/docs/index.js';
+import { registerSheetsTools } from './tools/sheets/index.js';
+import { registerSlidesTools } from './tools/slides/index.js';
+import { registerDirectoryTools } from './tools/directory/index.js';
 
 const server = new McpServer({
   name: 'google-workspace-mcp-server',

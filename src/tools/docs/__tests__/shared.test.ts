@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractTabText, formatDocTabs } from '../docs.js';
+import { extractTabText, formatDocTabs } from '../shared.js';
 
 describe('extractTabText', () => {
   it('extracts plain text from a tab body', () => {
