@@ -13,6 +13,7 @@ const _mocks = vi.hoisted(() => ({
   mockDraftsCreate: vi.fn(),
   mockDraftsUpdate: vi.fn(),
   mockDraftsDelete: vi.fn(),
+  mockDraftsSend: vi.fn(),
   mockExecSync: vi.fn(),
   mockExecFileSync: vi.fn(),
   mockUsersGetProfile: vi.fn(),
@@ -30,6 +31,7 @@ export const mockDraftsGet = _mocks.mockDraftsGet;
 export const mockDraftsCreate = _mocks.mockDraftsCreate;
 export const mockDraftsUpdate = _mocks.mockDraftsUpdate;
 export const mockDraftsDelete = _mocks.mockDraftsDelete;
+export const mockDraftsSend = _mocks.mockDraftsSend;
 export const mockExecSync = _mocks.mockExecSync;
 export const mockExecFileSync = _mocks.mockExecFileSync;
 export const mockUsersGetProfile = _mocks.mockUsersGetProfile;
@@ -58,6 +60,7 @@ vi.mock('googleapis', () => ({
           create: _mocks.mockDraftsCreate,
           update: _mocks.mockDraftsUpdate,
           delete: _mocks.mockDraftsDelete,
+          send: _mocks.mockDraftsSend,
         },
       },
     }),
