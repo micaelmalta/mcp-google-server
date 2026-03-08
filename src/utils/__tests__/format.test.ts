@@ -154,6 +154,12 @@ describe('buildRawEmail', () => {
     expect(decoded).toContain('Reply-To: reply@example.com');
   });
 
+  it('includes Bcc header when bcc provided', () => {
+    const raw = buildRawEmail({ to: 'a@b.com', subject: 'S', body: 'B', bcc: 'c@d.com' });
+    const decoded = Buffer.from(raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
+    expect(decoded).toContain('Bcc: c@d.com');
+  });
+
   it('includes References when provided', () => {
     const raw = buildRawEmail({
       to: 'b@b.com',

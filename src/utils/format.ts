@@ -58,6 +58,7 @@ export function buildRawEmail(params: {
   subject: string;
   body: string;
   cc?: string;
+  bcc?: string;
   replyTo?: string;
   threadId?: string;
   inReplyTo?: string;
@@ -72,6 +73,7 @@ export function buildRawEmail(params: {
 
   if (params.from) lines.push(`From: ${params.from}`);
   if (params.cc) lines.push(`Cc: ${params.cc}`);
+  if (params.bcc) lines.push(`Bcc: ${params.bcc}`);
   if (params.replyTo) lines.push(`Reply-To: ${params.replyTo}`);
   if (params.inReplyTo) lines.push(`In-Reply-To: ${params.inReplyTo}`);
   if (params.references) lines.push(`References: ${params.references}`);
