@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getGmail } from './shared.js';
 import { handleGoogleError } from '../../utils/errors.js';
-import { buildRawEmail } from '../../utils/format.js';
+import { composeRawEmail } from '../../utils/format.js';
 
 export function registerUpdateDraft(server: McpServer): void {
   server.registerTool(
@@ -21,7 +21,7 @@ export function registerUpdateDraft(server: McpServer): void {
     async (args) => {
       try {
         const gmail = getGmail();
-        const raw = buildRawEmail({ to: args.to, subject: args.subject, body: args.body, cc: args.cc, bcc: args.bcc });
+        const raw = await composeRawEmail({ to: args.to, subject: args.subject, body: args.body, cc: args.cc, bcc: args.bcc });
         const res = await gmail.users.drafts.update({
           userId: 'me',
           id: args.draft_id,

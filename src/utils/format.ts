@@ -1,4 +1,8 @@
+import nodemailer from 'nodemailer';
+import type { Readable } from 'stream';
 import { CHARACTER_LIMIT } from '../constants.js';
+
+const _transport = nodemailer.createTransport({ streamTransport: true, newline: 'unix' });
 
 /**
  * Truncates a response string if it exceeds CHARACTER_LIMIT,
@@ -50,9 +54,10 @@ export function encodeBase64Url(str: string): string {
 }
 
 /**
- * Builds a raw RFC 2822 MIME email message suitable for Gmail API.
+ * Composes a raw RFC 2822 email message suitable for Gmail API using nodemailer.
+ * Nodemailer handles header encoding and injection protection automatically.
  */
-export function buildRawEmail(params: {
+export async function composeRawEmail(params: {
   to: string;
   from?: string;
   subject: string;
@@ -60,27 +65,31 @@ export function buildRawEmail(params: {
   cc?: string;
   bcc?: string;
   replyTo?: string;
-  threadId?: string;
   inReplyTo?: string;
   references?: string;
-}): string {
-  const lines: string[] = [
-    `To: ${params.to}`,
-    `Subject: ${params.subject}`,
-    'Content-Type: text/plain; charset=utf-8',
-    'MIME-Version: 1.0',
-  ];
+}): Promise<string> {
+  const info = await _transport.sendMail({
+    to: params.to,
+    from: params.from,
+    subject: params.subject,
+    text: params.body,
+    cc: params.cc,
+    bcc: params.bcc,
+    replyTo: params.replyTo,
+    inReplyTo: params.inReplyTo,
+    references: params.references,
+  });
 
-  if (params.from) lines.push(`From: ${params.from}`);
-  if (params.cc) lines.push(`Cc: ${params.cc}`);
-  if (params.bcc) lines.push(`Bcc: ${params.bcc}`);
-  if (params.replyTo) lines.push(`Reply-To: ${params.replyTo}`);
-  if (params.inReplyTo) lines.push(`In-Reply-To: ${params.inReplyTo}`);
-  if (params.references) lines.push(`References: ${params.references}`);
+  const chunks: Buffer[] = [];
+  for await (const chunk of info.message as Readable) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
+  }
 
-  lines.push('', params.body);
-
-  return encodeBase64Url(lines.join('\r\n'));
+  return Buffer.concat(chunks)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
 }
 
 /**

@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getGmail } from './shared.js';
 import { handleGoogleError } from '../../utils/errors.js';
-import { buildRawEmail } from '../../utils/format.js';
+import { composeRawEmail } from '../../utils/format.js';
 
 export function registerCreateDraft(server: McpServer): void {
   server.registerTool(
@@ -74,7 +74,7 @@ export function registerCreateDraft(server: McpServer): void {
           effectiveSubj = args.subject;
         }
 
-        const raw = buildRawEmail({
+        const raw = await composeRawEmail({
           to: effectiveTo,
           subject: effectiveSubj,
           body: args.body,

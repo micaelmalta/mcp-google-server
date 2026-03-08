@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getGmail } from './shared.js';
-import { buildRawEmail } from '../../utils/format.js';
+import { composeRawEmail } from '../../utils/format.js';
 import { handleGoogleError } from '../../utils/errors.js';
 
 export function registerSendEmail(server: McpServer): void {
@@ -33,7 +33,7 @@ Returns:
     async ({ to, subject, body, cc, reply_to }) => {
       try {
         const gmail = getGmail();
-        const raw = buildRawEmail({ to, subject, body, cc, replyTo: reply_to });
+        const raw = await composeRawEmail({ to, subject, body, cc, replyTo: reply_to });
 
         const res = await gmail.users.messages.send({
           userId: 'me',

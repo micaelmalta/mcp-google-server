@@ -4,7 +4,7 @@ import {
   formatDate,
   decodeBase64Url,
   encodeBase64Url,
-  buildRawEmail,
+  composeRawEmail,
   extractEmailBody,
 } from '../format.js';
 
@@ -98,79 +98,40 @@ describe('encodeBase64Url', () => {
   });
 });
 
-describe('buildRawEmail', () => {
-  it('includes To, Subject, and body', () => {
-    const raw = buildRawEmail({ to: 'a@b.com', subject: 'Hi', body: 'Hello' });
-    const decoded = Buffer.from(
-      raw.replace(/-/g, '+').replace(/_/g, '/'),
-      'base64'
-    ).toString('utf-8');
-    expect(decoded).toContain('To: a@b.com');
+describe('composeRawEmail', () => {
+  const decode = (raw: string) =>
+    Buffer.from(raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
+
+  it('includes To, Subject, and body', async () => {
+    const decoded = decode(await composeRawEmail({ to: 'a@b.com', subject: 'Hi', body: 'Hello' }));
+    expect(decoded).toContain('a@b.com');
     expect(decoded).toContain('Subject: Hi');
     expect(decoded).toContain('Hello');
   });
 
-  it('includes From when provided', () => {
-    const raw = buildRawEmail({
-      to: 'b@b.com',
-      from: 'a@a.com',
-      subject: 'S',
-      body: 'B',
-    });
-    const decoded = Buffer.from(
-      raw.replace(/-/g, '+').replace(/_/g, '/'),
-      'base64'
-    ).toString('utf-8');
-    expect(decoded).toContain('From: a@a.com');
+  it('includes From when provided', async () => {
+    const decoded = decode(await composeRawEmail({ to: 'b@b.com', from: 'a@a.com', subject: 'S', body: 'B' }));
+    expect(decoded).toContain('a@a.com');
   });
 
-  it('includes In-Reply-To when inReplyTo provided', () => {
-    const raw = buildRawEmail({
-      to: 'b@b.com',
-      subject: 'S',
-      body: 'B',
-      inReplyTo: '<msg-id@mail.gmail.com>',
-    });
-    const decoded = Buffer.from(
-      raw.replace(/-/g, '+').replace(/_/g, '/'),
-      'base64'
-    ).toString('utf-8');
+  it('includes In-Reply-To when inReplyTo provided', async () => {
+    const decoded = decode(await composeRawEmail({ to: 'b@b.com', subject: 'S', body: 'B', inReplyTo: '<msg-id@mail.gmail.com>' }));
     expect(decoded).toContain('In-Reply-To: <msg-id@mail.gmail.com>');
   });
 
-  it('includes Cc and Reply-To when provided', () => {
-    const raw = buildRawEmail({
-      to: 'b@b.com',
-      subject: 'S',
-      body: 'B',
-      cc: 'cc@example.com',
-      replyTo: 'reply@example.com',
-    });
-    const decoded = Buffer.from(
-      raw.replace(/-/g, '+').replace(/_/g, '/'),
-      'base64'
-    ).toString('utf-8');
-    expect(decoded).toContain('Cc: cc@example.com');
-    expect(decoded).toContain('Reply-To: reply@example.com');
+  it('includes Cc and Reply-To when provided', async () => {
+    const decoded = decode(await composeRawEmail({ to: 'b@b.com', subject: 'S', body: 'B', cc: 'cc@example.com', replyTo: 'reply@example.com' }));
+    expect(decoded).toContain('cc@example.com');
+    expect(decoded).toContain('reply@example.com');
   });
 
-  it('includes Bcc header when bcc provided', () => {
-    const raw = buildRawEmail({ to: 'a@b.com', subject: 'S', body: 'B', bcc: 'c@d.com' });
-    const decoded = Buffer.from(raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
-    expect(decoded).toContain('Bcc: c@d.com');
+  it('includes Bcc header when bcc provided', async () => {
+    const decoded = decode(await composeRawEmail({ to: 'a@b.com', subject: 'S', body: 'B', bcc: 'c@d.com' }));
+    expect(decoded).toContain('c@d.com');
   });
 
-  it('includes References when provided', () => {
-    const raw = buildRawEmail({
-      to: 'b@b.com',
-      subject: 'S',
-      body: 'B',
-      references: '<ref1> <ref2>',
-    });
-    const decoded = Buffer.from(
-      raw.replace(/-/g, '+').replace(/_/g, '/'),
-      'base64'
-    ).toString('utf-8');
+  it('includes References when provided', async () => {
+    const decoded = decode(await composeRawEmail({ to: 'b@b.com', subject: 'S', body: 'B', references: '<ref1> <ref2>' }));
     expect(decoded).toContain('References: <ref1> <ref2>');
   });
 });

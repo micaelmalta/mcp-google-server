@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getGmail } from './shared.js';
-import { buildRawEmail } from '../../utils/format.js';
+import { composeRawEmail } from '../../utils/format.js';
 import { handleGoogleError } from '../../utils/errors.js';
 
 export function registerReplyEmail(server: McpServer): void {
@@ -46,7 +46,7 @@ Returns:
           ? headers['subject']
           : `Re: ${headers['subject'] ?? ''}`;
 
-        const raw = buildRawEmail({
+        const raw = await composeRawEmail({
           to: headers['from'] ?? '',
           subject,
           body,
