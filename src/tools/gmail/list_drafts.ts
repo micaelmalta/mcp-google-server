@@ -42,14 +42,19 @@ Returns:
         if (draftRefs.length === 0) {
           return {
             content: [{ type: 'text', text: 'No drafts found.' }],
-            structuredContent: { items: [], has_more: false, total_returned: 0 },
+            structuredContent: { items: [], has_more: false, total_returned: 0, next_page_token: undefined },
           };
         }
 
         // Gmail's drafts.list returns stubs only; a separate drafts.get per draft is required
         // to retrieve headers (subject, to, date). This results in N+1 API calls by design.
         const details = await Promise.all(
-          draftRefs.map((ref) => gmail.users.drafts.get({ userId: 'me', id: ref.id! }))
+          draftRefs.map((ref) => gmail.users.drafts.get({
+            userId: 'me',
+            id: ref.id!,
+            format: 'metadata',
+            metadataHeaders: ['Subject', 'To', 'Date'],
+          }))
         );
 
         const items = details.map((res) => {

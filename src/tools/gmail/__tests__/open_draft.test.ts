@@ -29,6 +29,19 @@ describe('google_gmail_open_draft tool', () => {
     expect(result.structuredContent.message_id).toBe('msg-abc');
   });
 
+  it('returns actionable error when Chrome cannot be opened', async () => {
+    mockDraftsGet.mockResolvedValue({
+      data: { id: 'draft-1', message: { id: 'msg-abc', threadId: 'thread-1' } },
+    });
+    mockExecFileSync.mockImplementation(() => { throw new Error('spawn open ENOENT'); });
+
+    const handler = registeredTools.get('google_gmail_open_draft')!;
+    const result = (await handler({ draft_id: 'draft-1' })) as { isError: boolean; content: { text: string }[] };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Google Chrome');
+    expect(result.content[0].text).toContain('https://mail.google.com/mail/u/0/#drafts/msg-abc');
+  });
+
   it('returns error on API failure', async () => {
     mockDraftsGet.mockRejectedValue(new Error('Not found'));
     const handler = registeredTools.get('google_gmail_open_draft')!;

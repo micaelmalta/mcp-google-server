@@ -42,8 +42,8 @@ Returns:
           return acc;
         }, {});
 
-        const subject = headers['subject']?.startsWith('Re:')
-          ? headers['subject']
+        const subject = /^re:/i.test(headers['subject'] ?? '')
+          ? (headers['subject'] ?? '')
           : `Re: ${headers['subject'] ?? ''}`;
 
         const raw = await composeRawEmail({

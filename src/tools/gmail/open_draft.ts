@@ -29,7 +29,14 @@ Returns:
         const res = await gmail.users.drafts.get({ userId: 'me', id: args.draft_id });
         const messageId = res.data.message?.id ?? '';
         const url = `https://mail.google.com/mail/u/0/#drafts/${messageId}`;
-        execFileSync('open', ['-a', 'Google Chrome', url]);
+        try {
+          execFileSync('open', ['-a', 'Google Chrome', url]);
+        } catch {
+          return {
+            isError: true,
+            content: [{ type: 'text' as const, text: `Could not open Google Chrome. Make sure it is installed and you are on macOS.\n\nURL: ${url}` }],
+          };
+        }
         return {
           content: [{ type: 'text', text: `Opened draft in Chrome.\n\nURL: ${url}` }],
           structuredContent: { draft_id: args.draft_id, message_id: messageId, url },

@@ -64,6 +64,77 @@ describe('google_gmail_update_draft tool', () => {
     expect(result.isError).toBe(true);
   });
 
+  it('defaults to existing to/subject/cc/body when not provided', async () => {
+    const existingBody = Buffer.from('Existing body text').toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+    mockDraftsGet.mockResolvedValue({
+      data: {
+        id: 'draft-1',
+        message: {
+          id: 'msg-1',
+          threadId: null,
+          payload: {
+            headers: [
+              { name: 'To', value: 'existing@example.com' },
+              { name: 'Subject', value: 'Existing Subject' },
+              { name: 'Cc', value: 'cc@example.com' },
+            ],
+            mimeType: 'text/plain',
+            body: { data: existingBody },
+          },
+        },
+      },
+    });
+    mockDraftsUpdate.mockResolvedValue({
+      data: { id: 'draft-1', message: { id: 'msg-2' } },
+    });
+
+    const handler = registeredTools.get('google_gmail_update_draft')!;
+    await handler({ draft_id: 'draft-1', body: 'Updated body only' });
+
+    const callArgs = mockDraftsUpdate.mock.calls[0][0];
+    const decoded = Buffer.from(
+      (callArgs.requestBody.message.raw as string).replace(/-/g, '+').replace(/_/g, '/'), 'base64'
+    ).toString();
+
+    expect(decoded).toContain('existing@example.com');
+    expect(decoded).toContain('Existing Subject');
+    expect(decoded).toContain('cc@example.com');
+    expect(decoded).toContain('Updated body only');
+  });
+
+  it('explicit fields override existing draft values', async () => {
+    mockDraftsGet.mockResolvedValue({
+      data: {
+        id: 'draft-1',
+        message: {
+          id: 'msg-1',
+          threadId: null,
+          payload: {
+            headers: [
+              { name: 'To', value: 'old@example.com' },
+              { name: 'Subject', value: 'Old Subject' },
+            ],
+          },
+        },
+      },
+    });
+    mockDraftsUpdate.mockResolvedValue({
+      data: { id: 'draft-1', message: { id: 'msg-2' } },
+    });
+
+    const handler = registeredTools.get('google_gmail_update_draft')!;
+    await handler({ draft_id: 'draft-1', to: 'new@example.com', subject: 'New Subject', body: 'New body' });
+
+    const callArgs = mockDraftsUpdate.mock.calls[0][0];
+    const decoded = Buffer.from(
+      (callArgs.requestBody.message.raw as string).replace(/-/g, '+').replace(/_/g, '/'), 'base64'
+    ).toString();
+
+    expect(decoded).toContain('new@example.com');
+    expect(decoded).toContain('New Subject');
+    expect(decoded).not.toContain('old@example.com');
+  });
+
   it('preserves In-Reply-To, References, and threadId when updating a reply draft', async () => {
     mockDraftsGet.mockResolvedValue({
       data: {
