@@ -14,13 +14,14 @@ export function registerUpdateDraft(server: McpServer): void {
         subject: z.string().describe('Email subject'),
         body: z.string().describe('Email body text'),
         cc: z.string().optional().describe('CC email addresses (comma-separated)'),
+        bcc: z.string().optional().describe('BCC recipients, comma-separated'),
       }).strict(),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args) => {
       try {
         const gmail = getGmail();
-        const raw = buildRawEmail({ to: args.to, subject: args.subject, body: args.body, cc: args.cc });
+        const raw = buildRawEmail({ to: args.to, subject: args.subject, body: args.body, cc: args.cc, bcc: args.bcc });
         const res = await gmail.users.drafts.update({
           userId: 'me',
           id: args.draft_id,

@@ -30,6 +30,24 @@ describe('google_gmail_update_draft tool', () => {
     expect(result.structuredContent.message_id).toBe('msg-2');
   });
 
+  it('includes BCC when provided', async () => {
+    mockDraftsUpdate.mockResolvedValue({
+      data: { id: 'draft-1', message: { id: 'msg-3' } },
+    });
+    const handler = registeredTools.get('google_gmail_update_draft')!;
+    await handler({
+      draft_id: 'draft-1',
+      to: 'a@b.com',
+      subject: 'S',
+      body: 'B',
+      bcc: 'hidden@example.com',
+    });
+    const callArgs = mockDraftsUpdate.mock.calls[0][0];
+    const raw: string = callArgs.requestBody.message.raw;
+    const decoded = Buffer.from(raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
+    expect(decoded).toContain('Bcc: hidden@example.com');
+  });
+
   it('returns error on API failure', async () => {
     mockDraftsUpdate.mockRejectedValue(new Error('Not found'));
     const handler = registeredTools.get('google_gmail_update_draft')!;
