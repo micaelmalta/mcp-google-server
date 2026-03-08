@@ -8,6 +8,7 @@ import { registerGetThread } from './get_thread.js';
 import { registerModifyLabels } from './modify_labels.js';
 import { registerListLabels } from './list_labels.js';
 import { registerCreateDraft } from './create_draft.js';
+import { registerListDrafts } from './list_drafts.js';
 
 export function registerGmailTools(server: McpServer): void {
   registerListMessages(server);
@@ -19,4 +20,5 @@ export function registerGmailTools(server: McpServer): void {
   registerModifyLabels(server);
   registerListLabels(server);
   registerCreateDraft(server);
+  registerListDrafts(server);
 }
