@@ -53,7 +53,6 @@ Returns:
             userId: 'me',
             id: ref.id!,
             format: 'metadata',
-            metadataHeaders: ['Subject', 'To', 'Date'],
           }))
         );
 
