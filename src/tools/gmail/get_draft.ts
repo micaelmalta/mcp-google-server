@@ -8,6 +8,17 @@ export function registerGetDraft(server: McpServer): void {
   server.registerTool(
     'google_gmail_get_draft',
     {
+      title: 'Get a Gmail Draft',
+      description: `Retrieves the full content of a Gmail draft by its ID.
+
+Args:
+  - draft_id: The draft ID to retrieve
+
+Returns:
+  - draft_id: The draft ID
+  - message_id: Underlying message ID
+  - subject, to, from, date: Email headers
+  - body: Decoded email body text`,
       inputSchema: z.object({
         draft_id: z.string().describe('Draft ID to retrieve'),
       }).strict(),

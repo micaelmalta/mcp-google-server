@@ -7,10 +7,19 @@ export function registerDeleteDraft(server: McpServer): void {
   server.registerTool(
     'google_gmail_delete_draft',
     {
+      title: 'Delete a Gmail Draft',
+      description: `Permanently deletes a Gmail draft. This action cannot be undone.
+
+Args:
+  - draft_id: The draft ID to delete
+
+Returns:
+  - draft_id: The deleted draft ID
+  - deleted: true`,
       inputSchema: z.object({
         draft_id: z.string().describe('Draft ID to permanently delete'),
       }).strict(),
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
     async (args) => {
       try {

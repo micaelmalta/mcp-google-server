@@ -101,6 +101,65 @@ describe('google_gmail_create_draft tool', () => {
     expect(result.structuredContent.draft_id).toBe('draft-reply');
   });
 
+  it('does not double-prefix subject when original starts with RE: (Outlook style)', async () => {
+    mockMessagesGet.mockResolvedValue({
+      data: {
+        threadId: 'thread-3',
+        payload: {
+          headers: [
+            { name: 'From', value: 'sender@example.com' },
+            { name: 'To', value: 'other@example.com' },
+            { name: 'Subject', value: 'RE: Important meeting' },
+            { name: 'Message-ID', value: '<id@mail.example.com>' },
+          ],
+        },
+      },
+    });
+    mockUsersGetProfile.mockResolvedValue({ data: { emailAddress: 'me@example.com' } });
+    mockDraftsCreate.mockResolvedValue({ data: { id: 'draft-1', message: { id: 'msg-1' } } });
+
+    const handler = registeredTools.get('google_gmail_create_draft')!;
+    await handler({ reply_to_message_id: 'orig-id', body: 'body' });
+
+    const callArgs = mockDraftsCreate.mock.calls[0][0];
+    const decoded = Buffer.from(
+      (callArgs.requestBody.message.raw as string).replace(/-/g, '+').replace(/_/g, '/'), 'base64'
+    ).toString();
+
+    expect(decoded).not.toMatch(/Subject:.*Re:.*RE:/);
+    expect(decoded).toContain('Subject: RE: Important meeting');
+  });
+
+  it('does not exclude recipients whose display name contains user email as substring', async () => {
+    mockMessagesGet.mockResolvedValue({
+      data: {
+        threadId: 'thread-10',
+        payload: {
+          headers: [
+            { name: 'From', value: '"Me Helper (me@example.com)" <helper@other.com>' },
+            { name: 'To', value: 'recipient@other.com' },
+            { name: 'Subject', value: 'Hello' },
+            { name: 'Message-ID', value: '<id@mail.example.com>' },
+          ],
+        },
+      },
+    });
+    mockUsersGetProfile.mockResolvedValue({ data: { emailAddress: 'me@example.com' } });
+    mockDraftsCreate.mockResolvedValue({ data: { id: 'draft-1', message: { id: 'msg-1' } } });
+
+    const handler = registeredTools.get('google_gmail_create_draft')!;
+    await handler({ reply_to_message_id: 'orig-id', body: 'body' });
+
+    const callArgs = mockDraftsCreate.mock.calls[0][0];
+    const decoded = Buffer.from(
+      (callArgs.requestBody.message.raw as string).replace(/-/g, '+').replace(/_/g, '/'), 'base64'
+    ).toString();
+
+    // helper@other.com display name mentions me@example.com but actual address differs — must NOT be excluded
+    expect(decoded).toContain('helper@other.com');
+    expect(decoded).toContain('recipient@other.com');
+  });
+
   it('explicit to/cc overrides reply-all defaults', async () => {
     mockMessagesGet.mockResolvedValue({
       data: {

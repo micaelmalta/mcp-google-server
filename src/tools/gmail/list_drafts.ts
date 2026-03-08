@@ -8,6 +8,19 @@ export function registerListDrafts(server: McpServer): void {
   server.registerTool(
     'google_gmail_list_drafts',
     {
+      title: 'List Gmail Drafts',
+      description: `Lists Gmail drafts with subject, recipient, and draft ID.
+
+Args:
+  - limit: Max drafts to return (1–100, default 20)
+  - page_token: Pagination token from a previous call
+  - response_format: 'markdown' (default) or 'json'
+
+Returns:
+  - items[]: Array of { draft_id, message_id, subject, to, date }
+  - has_more: Whether more pages exist
+  - total_returned: Count of items in this page
+  - next_page_token: Token for the next page`,
       inputSchema: z.object({
         limit: z.number().int().min(1).max(100).default(20).describe('Max drafts to return'),
         page_token: z.string().optional().describe('Pagination token from previous call'),
@@ -29,10 +42,12 @@ export function registerListDrafts(server: McpServer): void {
         if (draftRefs.length === 0) {
           return {
             content: [{ type: 'text', text: 'No drafts found.' }],
-            structuredContent: { items: [], has_more: false, total_returned: 0, next_page_token: undefined },
+            structuredContent: { items: [], has_more: false, total_returned: 0 },
           };
         }
 
+        // Gmail's drafts.list returns stubs only; a separate drafts.get per draft is required
+        // to retrieve headers (subject, to, date). This results in N+1 API calls by design.
         const details = await Promise.all(
           draftRefs.map((ref) => gmail.users.drafts.get({ userId: 'me', id: ref.id! }))
         );

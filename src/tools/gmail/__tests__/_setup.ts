@@ -14,6 +14,7 @@ const _mocks = vi.hoisted(() => ({
   mockDraftsUpdate: vi.fn(),
   mockDraftsDelete: vi.fn(),
   mockExecSync: vi.fn(),
+  mockExecFileSync: vi.fn(),
   mockUsersGetProfile: vi.fn(),
 }));
 
@@ -30,6 +31,7 @@ export const mockDraftsCreate = _mocks.mockDraftsCreate;
 export const mockDraftsUpdate = _mocks.mockDraftsUpdate;
 export const mockDraftsDelete = _mocks.mockDraftsDelete;
 export const mockExecSync = _mocks.mockExecSync;
+export const mockExecFileSync = _mocks.mockExecFileSync;
 export const mockUsersGetProfile = _mocks.mockUsersGetProfile;
 
 vi.mock('../../../auth/oauth.js', () => ({ requireAuth: () => ({}) }));
@@ -64,6 +66,7 @@ vi.mock('googleapis', () => ({
 
 vi.mock('child_process', () => ({
   execSync: _mocks.mockExecSync,
+  execFileSync: _mocks.mockExecFileSync,
 }));
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;

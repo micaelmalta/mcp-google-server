@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import './_setup.js';
-import { loadGmailTools, registeredTools, mockDraftsUpdate } from './_setup.js';
+import { loadGmailTools, registeredTools, mockDraftsUpdate, mockDraftsGet } from './_setup.js';
 
 describe('google_gmail_update_draft tool', () => {
   beforeEach(async () => {
@@ -9,6 +9,9 @@ describe('google_gmail_update_draft tool', () => {
   });
 
   it('updates a draft and returns draft_id and message_id', async () => {
+    mockDraftsGet.mockResolvedValue({
+      data: { id: 'draft-1', message: { id: 'msg-1', threadId: null, payload: { headers: [] } } },
+    });
     mockDraftsUpdate.mockResolvedValue({
       data: { id: 'draft-1', message: { id: 'msg-2', threadId: 'thread-1' } },
     });
@@ -31,6 +34,9 @@ describe('google_gmail_update_draft tool', () => {
   });
 
   it('includes BCC when provided', async () => {
+    mockDraftsGet.mockResolvedValue({
+      data: { id: 'draft-1', message: { id: 'msg-1', threadId: null, payload: { headers: [] } } },
+    });
     mockDraftsUpdate.mockResolvedValue({
       data: { id: 'draft-1', message: { id: 'msg-3' } },
     });
@@ -49,9 +55,44 @@ describe('google_gmail_update_draft tool', () => {
   });
 
   it('returns error on API failure', async () => {
+    mockDraftsGet.mockResolvedValue({
+      data: { id: 'x', message: { id: 'msg-x', threadId: null, payload: { headers: [] } } },
+    });
     mockDraftsUpdate.mockRejectedValue(new Error('Not found'));
     const handler = registeredTools.get('google_gmail_update_draft')!;
     const result = (await handler({ draft_id: 'x', to: 'a@b.com', subject: 'S', body: 'B' })) as { isError: boolean };
     expect(result.isError).toBe(true);
+  });
+
+  it('preserves In-Reply-To, References, and threadId when updating a reply draft', async () => {
+    mockDraftsGet.mockResolvedValue({
+      data: {
+        id: 'draft-1',
+        message: {
+          id: 'msg-1',
+          threadId: 'thread-42',
+          payload: {
+            headers: [
+              { name: 'In-Reply-To', value: '<orig-id@mail.example.com>' },
+              { name: 'References', value: '<prev@mail.example.com> <orig-id@mail.example.com>' },
+            ],
+          },
+        },
+      },
+    });
+    mockDraftsUpdate.mockResolvedValue({
+      data: { id: 'draft-1', message: { id: 'msg-2' } },
+    });
+
+    const handler = registeredTools.get('google_gmail_update_draft')!;
+    await handler({ draft_id: 'draft-1', to: 'new@b.com', subject: 'Updated Subject', body: 'Updated body' });
+
+    const callArgs = mockDraftsUpdate.mock.calls[0][0];
+    const raw: string = callArgs.requestBody.message.raw;
+    const decoded = Buffer.from(raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
+
+    expect(decoded).toContain('In-Reply-To: <orig-id@mail.example.com>');
+    expect(decoded).toContain('References:');
+    expect(callArgs.requestBody.message.threadId).toBe('thread-42');
   });
 });

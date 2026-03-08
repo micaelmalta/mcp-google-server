@@ -8,6 +8,20 @@ export function registerCreateDraft(server: McpServer): void {
   server.registerTool(
     'google_gmail_create_draft',
     {
+      title: 'Create a Gmail Draft',
+      description: `Creates a new Gmail draft. Supports plain composition and reply-all threading.
+
+Args:
+  - to: Recipient(s), comma-separated. Auto-populated when reply_to_message_id is given.
+  - subject: Email subject. Auto-prefixed "Re: " for replies.
+  - body: Email body text (required)
+  - cc: CC recipients, comma-separated
+  - bcc: BCC recipients, comma-separated
+  - reply_to_message_id: Message ID to reply to. Enables threading and defaults to reply-all.
+
+Returns:
+  - draft_id: ID of the created draft
+  - message_id: Underlying message ID`,
       inputSchema: z.object({
         to: z.string().optional().describe('Recipient(s), comma-separated. Auto-populated for reply-all when reply_to_message_id is provided.'),
         subject: z.string().optional().describe('Email subject. Auto-prefixed with "Re: " when reply_to_message_id is provided.'),
@@ -46,8 +60,13 @@ export function registerCreateDraft(server: McpServer): void {
             if (h.name && h.value) headerMap[h.name.toLowerCase()] = h.value;
           }
 
+          // Extract the bare email from "Display Name <email>" or plain "email" formats.
+          const extractEmail = (addr: string): string => {
+            const m = addr.match(/<([^>]+)>/);
+            return (m ? m[1] : addr).toLowerCase().trim();
+          };
           const splitAddrs = (str: string | undefined): string[] =>
-            (str ?? '').split(',').map(s => s.trim()).filter(s => s.length > 0 && !s.toLowerCase().includes(myEmail));
+            (str ?? '').split(',').map(s => s.trim()).filter(s => s.length > 0 && extractEmail(s) !== myEmail);
 
           const replyToList = [...splitAddrs(headerMap['from']), ...splitAddrs(headerMap['to'])];
           const ccList = splitAddrs(headerMap['cc']);
@@ -56,7 +75,7 @@ export function registerCreateDraft(server: McpServer): void {
           effectiveCc = args.cc ?? (ccList.length > 0 ? ccList.join(', ') : undefined);
 
           const origSubject = headerMap['subject'] ?? '';
-          effectiveSubj = args.subject ?? (origSubject.startsWith('Re:') ? origSubject : `Re: ${origSubject}`);
+          effectiveSubj = args.subject ?? (/^re:/i.test(origSubject) ? origSubject : `Re: ${origSubject}`);
 
           inReplyTo = headerMap['message-id'];
           const refs = [headerMap['references'], headerMap['message-id']].filter(Boolean).join(' ');
