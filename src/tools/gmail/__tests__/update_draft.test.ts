@@ -135,6 +135,40 @@ describe('google_gmail_update_draft tool', () => {
     expect(decoded).not.toContain('old@example.com');
   });
 
+  it('clears cc and bcc when passed as empty string', async () => {
+    mockDraftsGet.mockResolvedValue({
+      data: {
+        id: 'draft-1',
+        message: {
+          id: 'msg-1',
+          threadId: null,
+          payload: {
+            headers: [
+              { name: 'To', value: 'to@example.com' },
+              { name: 'Subject', value: 'Subject' },
+              { name: 'Cc', value: 'old-cc@example.com' },
+              { name: 'Bcc', value: 'old-bcc@example.com' },
+            ],
+          },
+        },
+      },
+    });
+    mockDraftsUpdate.mockResolvedValue({
+      data: { id: 'draft-1', message: { id: 'msg-2' } },
+    });
+
+    const handler = registeredTools.get('google_gmail_update_draft')!;
+    await handler({ draft_id: 'draft-1', body: 'New body', cc: '', bcc: '' });
+
+    const callArgs = mockDraftsUpdate.mock.calls[0][0];
+    const decoded = Buffer.from(
+      (callArgs.requestBody.message.raw as string).replace(/-/g, '+').replace(/_/g, '/'), 'base64'
+    ).toString();
+
+    expect(decoded).not.toContain('old-cc@example.com');
+    expect(decoded).not.toContain('old-bcc@example.com');
+  });
+
   it('preserves In-Reply-To, References, and threadId when updating a reply draft', async () => {
     mockDraftsGet.mockResolvedValue({
       data: {

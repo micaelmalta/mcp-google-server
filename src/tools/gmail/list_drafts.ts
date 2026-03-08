@@ -59,13 +59,13 @@ Returns:
         const items = details.map((res) => {
           const draft = res.data;
           const headers = draft.message?.payload?.headers ?? [];
-          const hmap = Object.fromEntries(headers.map((h: { name?: string | null; value?: string | null }) => [h.name ?? '', h.value ?? '']));
+          const hmap = Object.fromEntries(headers.map((h: { name?: string | null; value?: string | null }) => [h.name?.toLowerCase() ?? '', h.value ?? '']));
           return {
             draft_id: draft.id ?? '',
             message_id: draft.message?.id ?? '',
-            subject: hmap['Subject'] ?? '(no subject)',
-            to: hmap['To'] ?? '',
-            date: hmap['Date'] ?? '',
+            subject: hmap['subject'] ?? '(no subject)',
+            to: hmap['to'] ?? '',
+            date: hmap['date'] ?? '',
           };
         });
 

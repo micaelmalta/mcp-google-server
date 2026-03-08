@@ -30,12 +30,12 @@ Returns:
         const res = await gmail.users.drafts.get({ userId: 'me', id: args.draft_id });
         const draft = res.data;
         const headers = draft.message?.payload?.headers ?? [];
-        const hmap = Object.fromEntries(headers.map((h: { name?: string | null; value?: string | null }) => [h.name ?? '', h.value ?? '']));
+        const hmap = Object.fromEntries(headers.map((h: { name?: string | null; value?: string | null }) => [h.name?.toLowerCase() ?? '', h.value ?? '']));
         const body = extractEmailBody(draft.message?.payload ?? null);
-        const subject = hmap['Subject'] ?? '(no subject)';
-        const to = hmap['To'] ?? '';
-        const from = hmap['From'] ?? '';
-        const date = hmap['Date'] ?? '';
+        const subject = hmap['subject'] ?? '(no subject)';
+        const to = hmap['to'] ?? '';
+        const from = hmap['from'] ?? '';
+        const date = hmap['date'] ?? '';
         const draftId = draft.id ?? '';
         const messageId = draft.message?.id ?? '';
 

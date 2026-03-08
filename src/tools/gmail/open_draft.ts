@@ -21,7 +21,7 @@ Returns:
       inputSchema: z.object({
         draft_id: z.string().describe('Draft ID to open in Chrome'),
       }).strict(),
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args) => {
       try {

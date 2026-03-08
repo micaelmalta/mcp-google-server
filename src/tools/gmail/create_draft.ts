@@ -72,6 +72,9 @@ Returns:
           const ccList = splitAddrs(headerMap['cc']);
 
           effectiveTo = args.to ?? replyToList.join(', ');
+          if (!effectiveTo) {
+            return { isError: true, content: [{ type: 'text' as const, text: "Cannot determine recipients: you appear to be the only participant in this thread. Provide 'to' explicitly." }] };
+          }
           effectiveCc = args.cc ?? (ccList.length > 0 ? ccList.join(', ') : undefined);
 
           const origSubject = headerMap['subject'] ?? '';

@@ -41,13 +41,13 @@ Returns:
         });
         const headers = msgRes.data.payload?.headers ?? [];
         const hmap = Object.fromEntries(
-          headers.map((h: { name?: string | null; value?: string | null }) => [h.name ?? '', h.value ?? ''])
+          headers.map((h: { name?: string | null; value?: string | null }) => [h.name?.toLowerCase() ?? '', h.value ?? ''])
         );
 
-        const subject = hmap['Subject'] ?? '(no subject)';
-        const to = hmap['To'] ?? '';
-        const cc = hmap['Cc'] || undefined;
-        const date = hmap['Date'] ?? '';
+        const subject = hmap['subject'] ?? '(no subject)';
+        const to = hmap['to'] ?? '';
+        const cc = hmap['cc'] || undefined;
+        const date = hmap['date'] ?? '';
 
         const markdown = `Draft sent successfully.\n\n**Subject:** ${subject}\n**To:** ${to}${cc ? `\n**Cc:** ${cc}` : ''}\n**Date:** ${date}`;
         return {

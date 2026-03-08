@@ -160,6 +160,28 @@ describe('google_gmail_create_draft tool', () => {
     expect(decoded).toContain('recipient@other.com');
   });
 
+  it('returns error when user is the only participant in reply-all thread and no explicit to', async () => {
+    mockMessagesGet.mockResolvedValue({
+      data: {
+        threadId: 'thread-solo',
+        payload: {
+          headers: [
+            { name: 'From', value: 'me@example.com' },
+            { name: 'To', value: 'me@example.com' },
+            { name: 'Subject', value: 'Solo thread' },
+            { name: 'Message-ID', value: '<id@mail.example.com>' },
+          ],
+        },
+      },
+    });
+    mockUsersGetProfile.mockResolvedValue({ data: { emailAddress: 'me@example.com' } });
+
+    const handler = registeredTools.get('google_gmail_create_draft')!;
+    const result = (await handler({ reply_to_message_id: 'solo-id', body: 'body' })) as { isError: boolean; content: { text: string }[] };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('only participant');
+  });
+
   it('explicit to/cc overrides reply-all defaults', async () => {
     mockMessagesGet.mockResolvedValue({
       data: {
