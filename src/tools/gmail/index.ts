@@ -12,6 +12,7 @@ import { registerListDrafts } from './list_drafts.js';
 import { registerGetDraft } from './get_draft.js';
 import { registerUpdateDraft } from './update_draft.js';
 import { registerDeleteDraft } from './delete_draft.js';
+import { registerOpenDraft } from './open_draft.js';
 
 export function registerGmailTools(server: McpServer): void {
   registerListMessages(server);
@@ -27,4 +28,5 @@ export function registerGmailTools(server: McpServer): void {
   registerGetDraft(server);
   registerUpdateDraft(server);
   registerDeleteDraft(server);
+  registerOpenDraft(server);
 }
