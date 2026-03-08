@@ -14,6 +14,7 @@ const _mocks = vi.hoisted(() => ({
   mockDraftsUpdate: vi.fn(),
   mockDraftsDelete: vi.fn(),
   mockExecSync: vi.fn(),
+  mockUsersGetProfile: vi.fn(),
 }));
 
 export const mockLabelsList = _mocks.mockLabelsList;
@@ -29,6 +30,7 @@ export const mockDraftsCreate = _mocks.mockDraftsCreate;
 export const mockDraftsUpdate = _mocks.mockDraftsUpdate;
 export const mockDraftsDelete = _mocks.mockDraftsDelete;
 export const mockExecSync = _mocks.mockExecSync;
+export const mockUsersGetProfile = _mocks.mockUsersGetProfile;
 
 vi.mock('../../../auth/oauth.js', () => ({ requireAuth: () => ({}) }));
 
@@ -36,6 +38,7 @@ vi.mock('googleapis', () => ({
   google: {
     gmail: () => ({
       users: {
+        getProfile: _mocks.mockUsersGetProfile,
         labels: { list: _mocks.mockLabelsList },
         messages: {
           list: _mocks.mockMessagesList,
