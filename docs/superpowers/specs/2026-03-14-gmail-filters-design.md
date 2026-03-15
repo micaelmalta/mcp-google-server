@@ -115,7 +115,9 @@ interface FilterResult {
 ```
 
 `list_filters` returns `{ filters: FilterResult[] }`.
-All others return `{ filter: FilterResult }` (delete returns `{ filter_id: string }`).
+`get_filter` and `create_filter` return `{ filter: FilterResult }`.
+`update_filter` returns `{ filter: FilterResult }` (the newly created filter with its new ID).
+`delete_filter` returns `{ filter_id: string }`.
 
 ## Error Handling
 
@@ -123,7 +125,7 @@ All others return `{ filter: FilterResult }` (delete returns `{ filter_id: strin
 - Pre-flight validation errors (before any API call) return `isError: true` with a descriptive message:
   - `create` / `update` with no criteria fields: `"Error: At least one criteria field (from, to, subject, query) must be provided."`
   - `create` / `update` with no action fields: `"Error: At least one action must be provided (add_labels, remove_labels, skip_inbox, mark_as_read, or mark_as_important)."`
-- `update_filter` tool description notes the non-atomic nature: if the create step fails after delete, the filter is lost.
+- `update_filter` tool description notes the non-atomic nature: if the create step fails after delete, the filter is lost. If the delete step itself fails, the error is returned immediately and create is not attempted.
 
 ## Testing
 
