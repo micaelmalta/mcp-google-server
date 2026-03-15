@@ -25,11 +25,11 @@ Returns:
         const gmail = getGmail();
         await gmail.users.settings.filters.delete({ userId: 'me', id: filter_id });
         return {
-          content: [{ type: 'text' as const, text: `Filter \`${filter_id}\` deleted.` }],
+          content: [{ type: 'text', text: `Filter \`${filter_id}\` deleted.` }],
           structuredContent: { filter_id },
         };
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: handleGoogleError(error) }] };
+        return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
       }
     }
   );

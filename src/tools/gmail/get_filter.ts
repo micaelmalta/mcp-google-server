@@ -47,11 +47,11 @@ Returns:
         }
 
         return {
-          content: [{ type: 'text' as const, text }],
+          content: [{ type: 'text', text }],
           structuredContent: { filter },
         };
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: handleGoogleError(error) }] };
+        return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
       }
     }
   );
