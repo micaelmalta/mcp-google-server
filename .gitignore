@@ -1,6 +1,7 @@
 #AI Docs
 .mcp.json
 docs/plans/
+docs/superpowers/
 
 # Dependencies
 node_modules/
