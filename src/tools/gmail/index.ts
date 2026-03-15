@@ -18,6 +18,7 @@ import { registerListFilters } from './list_filters.js';
 import { registerGetFilter } from './get_filter.js';
 import { registerCreateFilter } from './create_filter.js';
 import { registerDeleteFilter } from './delete_filter.js';
+import { registerUpdateFilter } from './update_filter.js';
 
 export function registerGmailTools(server: McpServer): void {
   registerListMessages(server);
@@ -39,4 +40,5 @@ export function registerGmailTools(server: McpServer): void {
   registerGetFilter(server);
   registerCreateFilter(server);
   registerDeleteFilter(server);
+  registerUpdateFilter(server);
 }
