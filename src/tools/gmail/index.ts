@@ -17,6 +17,7 @@ import { registerSendDraft } from './send_draft.js';
 import { registerListFilters } from './list_filters.js';
 import { registerGetFilter } from './get_filter.js';
 import { registerCreateFilter } from './create_filter.js';
+import { registerDeleteFilter } from './delete_filter.js';
 
 export function registerGmailTools(server: McpServer): void {
   registerListMessages(server);
@@ -37,4 +38,5 @@ export function registerGmailTools(server: McpServer): void {
   registerListFilters(server);
   registerGetFilter(server);
   registerCreateFilter(server);
+  registerDeleteFilter(server);
 }
