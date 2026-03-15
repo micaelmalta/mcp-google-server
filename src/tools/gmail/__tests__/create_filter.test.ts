@@ -20,12 +20,15 @@ describe('google_gmail_create_filter', () => {
       },
     });
     const handler = registeredTools.get('google_gmail_create_filter')!;
-    const result = await handler({
+    const result = (await handler({
       from: 'promo@store.com',
       add_labels: 'Label_promos',
       skip_inbox: true,
       mark_as_read: true,
-    }) as any;
+    })) as {
+      content: { type: string; text: string }[];
+      structuredContent: { filter: { id: string } };
+    };
 
     expect(result.isError).toBeUndefined();
     expect(result.structuredContent.filter.id).toBe('new-filter');
@@ -65,7 +68,10 @@ describe('google_gmail_create_filter', () => {
 
   it('returns error when no criteria provided', async () => {
     const handler = registeredTools.get('google_gmail_create_filter')!;
-    const result = await handler({ add_labels: 'Label_123' }) as any;
+    const result = (await handler({ add_labels: 'Label_123' })) as {
+      isError: boolean;
+      content: { type: string; text: string }[];
+    };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('criteria');
@@ -74,7 +80,10 @@ describe('google_gmail_create_filter', () => {
 
   it('returns error when no action provided', async () => {
     const handler = registeredTools.get('google_gmail_create_filter')!;
-    const result = await handler({ from: 'test@example.com' }) as any;
+    const result = (await handler({ from: 'test@example.com' })) as {
+      isError: boolean;
+      content: { type: string; text: string }[];
+    };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('action');
@@ -84,10 +93,13 @@ describe('google_gmail_create_filter', () => {
   it('propagates API errors', async () => {
     mockSettingsFiltersCreate.mockRejectedValue(new Error('Invalid filter'));
     const handler = registeredTools.get('google_gmail_create_filter')!;
-    const result = await handler({
+    const result = (await handler({
       from: 'test@example.com',
       skip_inbox: true,
-    }) as any;
+    })) as {
+      isError: boolean;
+      content: { type: string; text: string }[];
+    };
 
     expect(result.isError).toBe(true);
   });

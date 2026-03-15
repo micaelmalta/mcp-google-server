@@ -22,11 +22,14 @@ describe('google_gmail_update_filter', () => {
       },
     });
     const handler = registeredTools.get('google_gmail_update_filter')!;
-    const result = await handler({
+    const result = (await handler({
       filter_id: 'old-filter-id',
       from: 'updated@example.com',
       skip_inbox: true,
-    }) as any;
+    })) as {
+      content: { type: string; text: string }[];
+      structuredContent: { filter: { id: string } };
+    };
 
     expect(result.isError).toBeUndefined();
     expect(mockSettingsFiltersDelete).toHaveBeenCalledWith({ userId: 'me', id: 'old-filter-id' });
@@ -38,11 +41,14 @@ describe('google_gmail_update_filter', () => {
   it('does not call create if delete fails', async () => {
     mockSettingsFiltersDelete.mockRejectedValue(new Error('Filter not found'));
     const handler = registeredTools.get('google_gmail_update_filter')!;
-    const result = await handler({
+    const result = (await handler({
       filter_id: 'bad-id',
       from: 'test@example.com',
       skip_inbox: true,
-    }) as any;
+    })) as {
+      isError: boolean;
+      content: { type: string; text: string }[];
+    };
 
     expect(result.isError).toBe(true);
     expect(mockSettingsFiltersCreate).not.toHaveBeenCalled();
@@ -50,7 +56,10 @@ describe('google_gmail_update_filter', () => {
 
   it('returns error (no API calls) when no criteria provided', async () => {
     const handler = registeredTools.get('google_gmail_update_filter')!;
-    const result = await handler({ filter_id: 'filter1', skip_inbox: true }) as any;
+    const result = (await handler({ filter_id: 'filter1', skip_inbox: true })) as {
+      isError: boolean;
+      content: { type: string; text: string }[];
+    };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('criteria');
@@ -60,7 +69,10 @@ describe('google_gmail_update_filter', () => {
 
   it('returns error (no API calls) when no action provided', async () => {
     const handler = registeredTools.get('google_gmail_update_filter')!;
-    const result = await handler({ filter_id: 'filter1', from: 'test@example.com' }) as any;
+    const result = (await handler({ filter_id: 'filter1', from: 'test@example.com' })) as {
+      isError: boolean;
+      content: { type: string; text: string }[];
+    };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('action');

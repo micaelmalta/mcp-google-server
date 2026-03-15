@@ -14,7 +14,10 @@ describe('google_gmail_delete_filter', () => {
   it('deletes a filter and returns confirmation', async () => {
     mockSettingsFiltersDelete.mockResolvedValue({ data: {} });
     const handler = registeredTools.get('google_gmail_delete_filter')!;
-    const result = await handler({ filter_id: 'filter1' }) as any;
+    const result = (await handler({ filter_id: 'filter1' })) as {
+      content: { type: string; text: string }[];
+      structuredContent: { filter_id: string };
+    };
 
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain('filter1');
@@ -25,7 +28,10 @@ describe('google_gmail_delete_filter', () => {
   it('propagates API error', async () => {
     mockSettingsFiltersDelete.mockRejectedValue(new Error('Filter not found'));
     const handler = registeredTools.get('google_gmail_delete_filter')!;
-    const result = await handler({ filter_id: 'bad-id' }) as any;
+    const result = (await handler({ filter_id: 'bad-id' })) as {
+      isError: boolean;
+      content: { type: string; text: string }[];
+    };
 
     expect(result.isError).toBe(true);
   });

@@ -27,7 +27,10 @@ describe('google_gmail_list_filters', () => {
   it('returns markdown listing all filters', async () => {
     mockSettingsFiltersList.mockResolvedValue({ data: { filter: SAMPLE_FILTERS } });
     const handler = registeredTools.get('google_gmail_list_filters')!;
-    const result = await handler({ response_format: 'markdown' }) as any;
+    const result = (await handler({ response_format: 'markdown' })) as {
+      content: { type: string; text: string }[];
+      structuredContent: { filters: { id: string }[] };
+    };
 
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain('filter1');
@@ -39,7 +42,10 @@ describe('google_gmail_list_filters', () => {
   it('returns "No filters found" when list is empty', async () => {
     mockSettingsFiltersList.mockResolvedValue({ data: { filter: [] } });
     const handler = registeredTools.get('google_gmail_list_filters')!;
-    const result = await handler({ response_format: 'markdown' }) as any;
+    const result = (await handler({ response_format: 'markdown' })) as {
+      content: { type: string; text: string }[];
+      structuredContent: { filters: unknown[] };
+    };
 
     expect(result.content[0].text).toContain('No filters');
     expect(result.structuredContent.filters).toHaveLength(0);
@@ -48,7 +54,9 @@ describe('google_gmail_list_filters', () => {
   it('returns JSON when response_format is json', async () => {
     mockSettingsFiltersList.mockResolvedValue({ data: { filter: SAMPLE_FILTERS } });
     const handler = registeredTools.get('google_gmail_list_filters')!;
-    const result = await handler({ response_format: 'json' }) as any;
+    const result = (await handler({ response_format: 'json' })) as {
+      content: { type: string; text: string }[];
+    };
 
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.filters).toHaveLength(2);
@@ -57,7 +65,10 @@ describe('google_gmail_list_filters', () => {
   it('propagates API errors', async () => {
     mockSettingsFiltersList.mockRejectedValue(new Error('API error'));
     const handler = registeredTools.get('google_gmail_list_filters')!;
-    const result = await handler({ response_format: 'markdown' }) as any;
+    const result = (await handler({ response_format: 'markdown' })) as {
+      isError: boolean;
+      content: { type: string; text: string }[];
+    };
 
     expect(result.isError).toBe(true);
   });
