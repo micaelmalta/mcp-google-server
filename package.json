@@ -23,21 +23,21 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.6.1",
-    "google-auth-library": "^9.15.1",
-    "googleapis": "^144.0.0",
-    "nodemailer": "^8.0.1",
-    "zod": "^3.23.8"
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "google-auth-library": "^10.6.2",
+    "googleapis": "^171.4.0",
+    "nodemailer": "^8.0.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@types/node": "^22.10.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.5.0",
     "@types/nodemailer": "^7.0.11",
-    "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^9.17.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.0",
-    "vitest": "^4.0.18"
+    "@vitest/coverage-v8": "^4.1.0",
+    "eslint": "^10.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.1",
+    "vitest": "^4.1.0"
   }
 }
