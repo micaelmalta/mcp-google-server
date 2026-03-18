@@ -128,8 +128,8 @@ async function runHttp(port: number): Promise<void> {
         });
       }
     } finally {
-      transport.close();
-      server.close();
+      try { transport.close(); } catch { /* ignore */ }
+      try { server.close(); } catch { /* ignore */ }
     }
   });
 
