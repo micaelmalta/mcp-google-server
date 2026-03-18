@@ -6,6 +6,8 @@ on:
     tags-ignore:
       - '**'
 
+permissions: {}
+
 jobs:
   helm_validator:
     strategy:

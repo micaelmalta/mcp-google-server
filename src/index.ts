@@ -31,13 +31,15 @@ import { registerDirectoryTools } from './tools/directory/index.js';
 import { buildClientFromTokens } from './auth/oauth.js';
 import { authContext } from './auth/context.js';
 
-function createServer(): McpServer {
+function createServer(opts: { includeAuthTools: boolean } = { includeAuthTools: true }): McpServer {
   const server = new McpServer({
     name: 'google-workspace-mcp-server',
     version: '1.0.0',
   });
 
-  registerAuthTools(server);
+  if (opts.includeAuthTools) {
+    registerAuthTools(server);
+  }
   registerCalendarTools(server);
   registerGmailTools(server);
   registerDriveTools(server);
@@ -58,7 +60,7 @@ async function runStdio(): Promise<void> {
     );
   }
 
-  const server = createServer();
+  const server = createServer({ includeAuthTools: true });
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('[google-workspace-mcp] Server running via stdio');
@@ -72,6 +74,10 @@ async function runHttp(port: number): Promise<void> {
   }
 
   const app = createMcpExpressApp({ host: '0.0.0.0' });
+
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+  });
 
   app.post('/mcp', async (req, res) => {
     const tokenHeader = req.headers['x-google-tokens'];
@@ -87,22 +93,27 @@ async function runHttp(port: number): Promise<void> {
     let client;
     try {
       client = buildClientFromTokens(tokenHeader);
-    } catch {
-      res.status(401).json({
-        jsonrpc: '2.0',
-        error: { code: -32001, message: 'Invalid X-Google-Tokens header: must be valid token JSON' },
-        id: null,
-      });
+    } catch (err) {
+      const isConfigError = err instanceof Error && err.message.includes('environment variables are required');
+      if (isConfigError) {
+        console.error('[google-workspace-mcp] Server misconfiguration:', err);
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: 'Server misconfiguration: missing Google credentials' },
+          id: null,
+        });
+      } else {
+        res.status(401).json({
+          jsonrpc: '2.0',
+          error: { code: -32001, message: 'Invalid X-Google-Tokens header: must be valid token JSON' },
+          id: null,
+        });
+      }
       return;
     }
 
-    const server = createServer();
+    const server = createServer({ includeAuthTools: false });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-
-    res.on('close', () => {
-      transport.close();
-      server.close();
-    });
 
     try {
       await server.connect(transport);
@@ -116,6 +127,9 @@ async function runHttp(port: number): Promise<void> {
           id: null,
         });
       }
+    } finally {
+      transport.close();
+      server.close();
     }
   });
 
@@ -127,7 +141,8 @@ async function runHttp(port: number): Promise<void> {
 async function main(): Promise<void> {
   const transport = process.env.TRANSPORT ?? 'stdio';
   if (transport === 'http') {
-    const port = parseInt(process.env.PORT ?? '3000', 10);
+    const rawPort = parseInt(process.env.PORT ?? '3000', 10);
+    const port = Number.isNaN(rawPort) ? 3000 : rawPort;
     await runHttp(port);
   } else {
     await runStdio();

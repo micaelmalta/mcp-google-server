@@ -58,7 +58,14 @@ export function getOAuthClient(): OAuth2Client {
 export function buildClientFromTokens(tokenJson: string): OAuth2Client {
   const { clientId, clientSecret, redirectUri } = getCredentials();
   const client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-  const tokens = JSON.parse(tokenJson) as Credentials;
+  const parsed: unknown = JSON.parse(tokenJson);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('Token JSON must be an object');
+  }
+  const tokens = parsed as Credentials;
+  if (!tokens.access_token && !tokens.refresh_token) {
+    throw new Error('Token JSON must contain at least an access_token or refresh_token');
+  }
   client.setCredentials(tokens);
   return client;
 }
