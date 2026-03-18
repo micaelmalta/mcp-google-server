@@ -6,7 +6,8 @@ on:
     tags-ignore:
       - '**'
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   helm_validator:
