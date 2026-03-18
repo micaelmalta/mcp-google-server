@@ -1,0 +1,86 @@
+hostname: &hostname mcp-google-server.prod.vibe.justworks.com
+
+mcp-google-server-env: &env
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: TRANSPORT
+      value: http
+    - name: PORT
+      value: "3000"
+    - name: GOOGLE_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: mcp-google-server-prod
+          key: GOOGLE_CLIENT_ID
+    - name: GOOGLE_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: mcp-google-server-prod
+          key: GOOGLE_CLIENT_SECRET
+    - name: GOOGLE_REDIRECT_URI
+      value: https://mcp-google-server.prod.vibe.justworks.com/callback
+
+# Service
+mcp-google-server-service:
+  nameOverride: mcp-google-server-service-prod
+  fullnameOverride: mcp-google-server-service-prod
+
+  <<: *env
+
+  serviceAccount:
+    name: mcp-google-server-prod-sa
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::532796455123:role/app/mcp-google-server-prod
+
+  ingress:
+    enabled: true
+    annotations:
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:532796455123:certificate/d6e5a039-c6f6-4f91-97c9-258c71d7ec2f
+      external-dns.alpha.kubernetes.io/hostname: *hostname
+
+    customPaths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: ssl-redirect
+            port:
+              name: use-annotation
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: mcp-google-server-service-prod
+            port:
+              number: 3000
+    hosts:
+      - *hostname
+    tls:
+      - hosts:
+          - *hostname
+
+  autoscaling:
+    enabled: true
+
+  datadog:
+    env: prod
+
+secret-storage:
+  nameOverride: mcp-google-server-secrets-prod
+  fullnameOverride: mcp-google-server-secrets-prod
+  serviceAccount:
+    name: mcp-google-server-prod-sa
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::532796455123:role/app/mcp-google-server-prod
+  secretStore:
+    name: mcp-google-server-prod
+    secrets:
+      - secretKey: GOOGLE_CLIENT_ID
+        remoteRef:
+          key: mcp-google-server-prod/app
+          property: GOOGLE_CLIENT_ID
+      - secretKey: GOOGLE_CLIENT_SECRET
+        remoteRef:
+          key: mcp-google-server-prod/app
+          property: GOOGLE_CLIENT_SECRET
