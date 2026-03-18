@@ -41,7 +41,7 @@ An MCP (Model Context Protocol) server that connects Claude to your Google Works
 
 **Option A — Run directly from GitHub (no local clone needed):**
 
-Skip this step entirely. Use `npx github:micaelmalta/mcp-google-server` as the command in step 4 below. npm will download, install, and build the server automatically on first run.
+Skip this step entirely. Use `npx github:justworkshr/mcp-google-server` as the command in step 4 below. npm will download, install, and build the server automatically on first run.
 
 **Option B — Local install:**
 
@@ -55,14 +55,16 @@ npm run build
 #### Claude CLI
 
 From GitHub (no local clone):
+
 ```bash
 claude mcp add google-workspace \
   --env GOOGLE_CLIENT_ID=your_client_id_here \
   --env GOOGLE_CLIENT_SECRET=your_client_secret_here \
-  -- npx -y github:micaelmalta/mcp-google-server
+  -- npx -y github:justworkshr/mcp-google-server
 ```
 
 From local install:
+
 ```bash
 claude mcp add google-workspace \
   --env GOOGLE_CLIENT_ID=your_client_id_here \
@@ -81,12 +83,13 @@ claude mcp list
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 From GitHub (no local clone):
+
 ```json
 {
   "mcpServers": {
     "google-workspace": {
       "command": "npx",
-      "args": ["-y", "github:micaelmalta/mcp-google-server"],
+      "args": ["-y", "github:justworkshr/mcp-google-server"],
       "env": {
         "GOOGLE_CLIENT_ID": "your_client_id_here",
         "GOOGLE_CLIENT_SECRET": "your_client_secret_here"
@@ -97,6 +100,7 @@ From GitHub (no local clone):
 ```
 
 From local install:
+
 ```json
 {
   "mcpServers": {
@@ -123,91 +127,99 @@ Open the URL it returns, sign in with Google, and grant permissions. Tokens are 
 ## Available Tools
 
 ### Authentication
-| Tool | Description |
-|------|-------------|
-| `google_auth_start` | Start OAuth2 flow — returns authorization URL |
-| `google_auth_status` | Check if authenticated and token details |
+
+| Tool                 | Description                                   |
+| -------------------- | --------------------------------------------- |
+| `google_auth_start`  | Start OAuth2 flow — returns authorization URL |
+| `google_auth_status` | Check if authenticated and token details      |
 | `google_auth_revoke` | Delete stored tokens (re-auth required after) |
 
 ### Google Calendar
-| Tool | Description |
-|------|-------------|
-| `google_calendar_list_calendars` | List all your calendars |
-| `google_calendar_list_events` | List events with date/search filters |
-| `google_calendar_get_event` | Get full event details |
-| `google_calendar_create_event` | Create a new event with attendees |
-| `google_calendar_update_event` | Update event title, time, attendees |
-| `google_calendar_approve_event` | Accept a calendar event invitation |
-| `google_calendar_decline_event` | Decline a calendar event invitation |
-| `google_calendar_delete_event` | Delete an event |
-| `google_calendar_get_freebusy` | Check free/busy for scheduling |
+
+| Tool                             | Description                          |
+| -------------------------------- | ------------------------------------ |
+| `google_calendar_list_calendars` | List all your calendars              |
+| `google_calendar_list_events`    | List events with date/search filters |
+| `google_calendar_get_event`      | Get full event details               |
+| `google_calendar_create_event`   | Create a new event with attendees    |
+| `google_calendar_update_event`   | Update event title, time, attendees  |
+| `google_calendar_approve_event`  | Accept a calendar event invitation   |
+| `google_calendar_decline_event`  | Decline a calendar event invitation  |
+| `google_calendar_delete_event`   | Delete an event                      |
+| `google_calendar_get_freebusy`   | Check free/busy for scheduling       |
 
 ### Gmail
-| Tool | Description |
-|------|-------------|
-| `google_gmail_list_messages` | Search and list messages |
-| `google_gmail_get_message` | Read full message content |
-| `google_gmail_send_email` | Send an email |
-| `google_gmail_reply_email` | Reply to an existing thread |
-| `google_gmail_list_threads` | List conversation threads |
-| `google_gmail_get_thread` | Read full conversation thread |
+
+| Tool                         | Description                                  |
+| ---------------------------- | -------------------------------------------- |
+| `google_gmail_list_messages` | Search and list messages                     |
+| `google_gmail_get_message`   | Read full message content                    |
+| `google_gmail_send_email`    | Send an email                                |
+| `google_gmail_reply_email`   | Reply to an existing thread                  |
+| `google_gmail_list_threads`  | List conversation threads                    |
+| `google_gmail_get_thread`    | Read full conversation thread                |
 | `google_gmail_modify_labels` | Add/remove labels (archive, star, mark read) |
-| `google_gmail_list_labels` | List all labels with IDs |
+| `google_gmail_list_labels`   | List all labels with IDs                     |
 
 ### Google Drive
-| Tool | Description |
-|------|-------------|
-| `google_drive_list_files` | List files in a folder |
-| `google_drive_search_files` | Search with Drive query syntax |
-| `google_drive_get_file` | Get file metadata |
-| `google_drive_create_folder` | Create a new folder |
-| `google_drive_move_file` | Move file to a different folder |
-| `google_drive_delete_file` | Move file to Trash |
-| `google_drive_share_file` | Share with user/group/anyone |
-| `google_drive_list_permissions` | List file sharing permissions |
+
+| Tool                            | Description                     |
+| ------------------------------- | ------------------------------- |
+| `google_drive_list_files`       | List files in a folder          |
+| `google_drive_search_files`     | Search with Drive query syntax  |
+| `google_drive_get_file`         | Get file metadata               |
+| `google_drive_create_folder`    | Create a new folder             |
+| `google_drive_move_file`        | Move file to a different folder |
+| `google_drive_delete_file`      | Move file to Trash              |
+| `google_drive_share_file`       | Share with user/group/anyone    |
+| `google_drive_list_permissions` | List file sharing permissions   |
 
 ### Google Docs
-| Tool | Description |
-|------|-------------|
-| `google_docs_create` | Create a new document |
-| `google_docs_get` | Read document content |
+
+| Tool                      | Description             |
+| ------------------------- | ----------------------- |
+| `google_docs_create`      | Create a new document   |
+| `google_docs_get`         | Read document content   |
 | `google_docs_append_text` | Append text to document |
 
 ### Google Sheets
-| Tool | Description |
-|------|-------------|
-| `google_sheets_create` | Create a new spreadsheet |
-| `google_sheets_get_values` | Read cell values (A1 notation) |
-| `google_sheets_update_values` | Write/overwrite cell values |
-| `google_sheets_append_values` | Append new rows |
-| `google_sheets_add_sheet` | Add a new tab/sheet to a spreadsheet |
-| `google_sheets_delete_sheet` | Delete a tab/sheet from a spreadsheet |
+
+| Tool                          | Description                           |
+| ----------------------------- | ------------------------------------- |
+| `google_sheets_create`        | Create a new spreadsheet              |
+| `google_sheets_get_values`    | Read cell values (A1 notation)        |
+| `google_sheets_update_values` | Write/overwrite cell values           |
+| `google_sheets_append_values` | Append new rows                       |
+| `google_sheets_add_sheet`     | Add a new tab/sheet to a spreadsheet  |
+| `google_sheets_delete_sheet`  | Delete a tab/sheet from a spreadsheet |
 
 ### Google Slides
-| Tool | Description |
-|------|-------------|
-| `google_slides_create` | Create a new presentation |
-| `google_slides_get` | Get slides and their text content |
+
+| Tool                          | Description                            |
+| ----------------------------- | -------------------------------------- |
+| `google_slides_create`        | Create a new presentation              |
+| `google_slides_get`           | Get slides and their text content      |
 | `google_slides_append_slides` | Add slides to an existing presentation |
 
 ### Google Directory & Contacts
-| Tool | Description |
-|------|-------------|
-| `google_directory_list` | List people in your Google Workspace domain directory |
-| `google_directory_search` | Search your domain directory by name or email |
-| `google_contacts_list` | List your personal Google contacts |
-| `google_contacts_search` | Search your personal Google contacts by name |
+
+| Tool                      | Description                                           |
+| ------------------------- | ----------------------------------------------------- |
+| `google_directory_list`   | List people in your Google Workspace domain directory |
+| `google_directory_search` | Search your domain directory by name or email         |
+| `google_contacts_list`    | List your personal Google contacts                    |
+| `google_contacts_search`  | Search your personal Google contacts by name          |
 
 ---
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GOOGLE_CLIENT_ID` | Yes | — | OAuth2 Client ID from Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | Yes | — | OAuth2 Client Secret |
-| `GOOGLE_REDIRECT_URI` | No | `http://localhost:8080/callback` | Must match Google Cloud Console |
-| `GOOGLE_TOKENS_PATH` | No | `~/.google-mcp-tokens.json` | Where to store OAuth tokens |
+| Variable               | Required | Default                          | Description                                |
+| ---------------------- | -------- | -------------------------------- | ------------------------------------------ |
+| `GOOGLE_CLIENT_ID`     | Yes      | —                                | OAuth2 Client ID from Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | Yes      | —                                | OAuth2 Client Secret                       |
+| `GOOGLE_REDIRECT_URI`  | No       | `http://localhost:8080/callback` | Must match Google Cloud Console            |
+| `GOOGLE_TOKENS_PATH`   | No       | `~/.google-mcp-tokens.json`      | Where to store OAuth tokens                |
 
 ---
 
