@@ -81,7 +81,7 @@ async function runHttp(port: number): Promise<void> {
 
   app.post('/mcp', async (req, res) => {
     const tokenHeader = req.headers['x-google-tokens'];
-    if (!tokenHeader || typeof tokenHeader !== 'string') {
+    if (!tokenHeader || typeof tokenHeader !== 'string' || tokenHeader.length > 8192) {
       res.status(401).json({
         jsonrpc: '2.0',
         error: { code: -32001, message: 'Missing X-Google-Tokens header' },
@@ -128,8 +128,8 @@ async function runHttp(port: number): Promise<void> {
         });
       }
     } finally {
-      try { transport.close(); } catch { /* ignore */ }
-      try { server.close(); } catch { /* ignore */ }
+      try { await transport.close(); } catch { /* ignore */ }
+      try { await server.close(); } catch { /* ignore */ }
     }
   });
 
