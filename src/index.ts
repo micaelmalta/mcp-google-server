@@ -5,14 +5,20 @@
  * Provides tools for interacting with Google Calendar, Gmail, Drive,
  * Docs, Sheets, and Slides via the Google APIs with OAuth2 authentication.
  *
- * Usage:
+ * Stdio mode (default):
  *   GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... node dist/index.js
+ *   First run: call google_auth_start to authorize, then use all other tools.
  *
- * First run: call google_auth_start to authorize, then use all other tools.
+ * HTTP mode:
+ *   TRANSPORT=http PORT=3000 GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... node dist/index.js
+ *   Each request must include an X-Google-Tokens header with the OAuth token JSON.
+ *   The server is stateless — no tokens are stored on disk.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
 
 import { registerAuthTools } from './tools/auth/index.js';
 import { registerCalendarTools } from './tools/calendar/index.js';
@@ -22,24 +28,28 @@ import { registerDocsTools } from './tools/docs/index.js';
 import { registerSheetsTools } from './tools/sheets/index.js';
 import { registerSlidesTools } from './tools/slides/index.js';
 import { registerDirectoryTools } from './tools/directory/index.js';
+import { buildClientFromTokens } from './auth/oauth.js';
+import { authContext } from './auth/context.js';
 
-const server = new McpServer({
-  name: 'google-workspace-mcp-server',
-  version: '1.0.0',
-});
+function createServer(): McpServer {
+  const server = new McpServer({
+    name: 'google-workspace-mcp-server',
+    version: '1.0.0',
+  });
 
-// Register all tool groups
-registerAuthTools(server);
-registerCalendarTools(server);
-registerGmailTools(server);
-registerDriveTools(server);
-registerDocsTools(server);
-registerSheetsTools(server);
-registerSlidesTools(server);
-registerDirectoryTools(server);
+  registerAuthTools(server);
+  registerCalendarTools(server);
+  registerGmailTools(server);
+  registerDriveTools(server);
+  registerDocsTools(server);
+  registerSheetsTools(server);
+  registerSlidesTools(server);
+  registerDirectoryTools(server);
 
-async function main(): Promise<void> {
-  // Validate required env vars on startup (warn only — auth tools provide better errors)
+  return server;
+}
+
+async function runStdio(): Promise<void> {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     console.error(
       '[google-workspace-mcp] WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set. ' +
@@ -48,9 +58,80 @@ async function main(): Promise<void> {
     );
   }
 
+  const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('[google-workspace-mcp] Server running via stdio');
+}
+
+async function runHttp(port: number): Promise<void> {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.error(
+      '[google-workspace-mcp] WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set.'
+    );
+  }
+
+  const app = createMcpExpressApp({ host: '0.0.0.0' });
+
+  app.post('/mcp', async (req, res) => {
+    const tokenHeader = req.headers['x-google-tokens'];
+    if (!tokenHeader || typeof tokenHeader !== 'string') {
+      res.status(401).json({
+        jsonrpc: '2.0',
+        error: { code: -32001, message: 'Missing X-Google-Tokens header' },
+        id: null,
+      });
+      return;
+    }
+
+    let client;
+    try {
+      client = buildClientFromTokens(tokenHeader);
+    } catch {
+      res.status(401).json({
+        jsonrpc: '2.0',
+        error: { code: -32001, message: 'Invalid X-Google-Tokens header: must be valid token JSON' },
+        id: null,
+      });
+      return;
+    }
+
+    const server = createServer();
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+
+    res.on('close', () => {
+      transport.close();
+      server.close();
+    });
+
+    try {
+      await server.connect(transport);
+      await authContext.run(client, () => transport.handleRequest(req, res, req.body));
+    } catch (error) {
+      console.error('[google-workspace-mcp] Error handling request:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: 'Internal server error' },
+          id: null,
+        });
+      }
+    }
+  });
+
+  app.listen(port, () => {
+    console.error(`[google-workspace-mcp] Server running via HTTP on port ${port}`);
+  });
+}
+
+async function main(): Promise<void> {
+  const transport = process.env.TRANSPORT ?? 'stdio';
+  if (transport === 'http') {
+    const port = parseInt(process.env.PORT ?? '3000', 10);
+    await runHttp(port);
+  } else {
+    await runStdio();
+  }
 }
 
 main().catch((error: unknown) => {

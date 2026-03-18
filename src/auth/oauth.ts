@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import { OAuth2Client, Credentials } from 'google-auth-library';
 import fs from 'fs';
 import { TOKENS_PATH, SCOPES } from '../constants.js';
+import { authContext } from './context.js';
 
 let _client: OAuth2Client | null = null;
 
@@ -47,6 +48,19 @@ export function getOAuthClient(): OAuth2Client {
   });
 
   return _client;
+}
+
+/**
+ * Builds a one-off OAuth2Client from a token JSON string (for HTTP mode).
+ * The token JSON should contain at minimum a refresh_token.
+ * Access tokens are refreshed automatically by the google-auth-library.
+ */
+export function buildClientFromTokens(tokenJson: string): OAuth2Client {
+  const { clientId, clientSecret, redirectUri } = getCredentials();
+  const client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  const tokens = JSON.parse(tokenJson) as Credentials;
+  client.setCredentials(tokens);
+  return client;
 }
 
 /**
@@ -104,9 +118,15 @@ export function isAuthenticated(): boolean {
 }
 
 /**
- * Returns the OAuth client or throws if not authenticated.
+ * Returns the active OAuth2Client or throws if not authenticated.
+ *
+ * In HTTP mode, returns the per-request client from AsyncLocalStorage.
+ * In stdio mode, returns the persistent singleton loaded from disk.
  */
 export function requireAuth(): OAuth2Client {
+  const contextClient = authContext.getStore();
+  if (contextClient) return contextClient;
+
   const client = getOAuthClient();
   const creds = client.credentials;
   if (!creds.access_token && !creds.refresh_token) {
