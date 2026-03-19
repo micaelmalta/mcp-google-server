@@ -81,10 +81,19 @@ async function runHttp(port: number): Promise<void> {
 
   app.post('/mcp', async (req, res) => {
     const tokenHeader = req.headers['x-google-tokens'];
-    if (!tokenHeader || typeof tokenHeader !== 'string' || tokenHeader.length > 8192) {
+    if (!tokenHeader || typeof tokenHeader !== 'string') {
       res.status(401).json({
         jsonrpc: '2.0',
         error: { code: -32001, message: 'Missing X-Google-Tokens header' },
+        id: null,
+      });
+      return;
+    }
+
+    if (tokenHeader.length > 8192) {
+      res.status(413).json({
+        jsonrpc: '2.0',
+        error: { code: -32001, message: 'X-Google-Tokens header exceeds 8192 byte limit' },
         id: null,
       });
       return;
@@ -145,6 +154,9 @@ async function main(): Promise<void> {
     const port = Number.isNaN(rawPort) ? 3000 : rawPort;
     await runHttp(port);
   } else {
+    if (transport !== 'stdio') {
+      console.error(`[google-workspace-mcp] Unknown TRANSPORT="${transport}", defaulting to stdio`);
+    }
     await runStdio();
   }
 }
