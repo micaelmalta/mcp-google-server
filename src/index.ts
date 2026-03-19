@@ -142,8 +142,13 @@ async function runHttp(port: number): Promise<void> {
     }
   });
 
-  app.listen(port, () => {
+  const httpServer = app.listen(port, () => {
     console.error(`[google-workspace-mcp] Server running via HTTP on port ${port}`);
+  });
+
+  process.on('SIGTERM', () => {
+    console.error('[google-workspace-mcp] SIGTERM received, shutting down gracefully');
+    httpServer.close();
   });
 }
 
