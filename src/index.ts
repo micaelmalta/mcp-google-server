@@ -122,6 +122,9 @@ async function runHttp(port: number): Promise<void> {
       return;
     }
 
+    // A new server+transport is required per request: the SDK throws if connect() is
+    // called on an already-connected Protocol instance, so reuse is not possible in
+    // stateless mode (sessionIdGenerator: undefined). See protocol.js:216.
     const server = createServer({ includeAuthTools: false });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
 
