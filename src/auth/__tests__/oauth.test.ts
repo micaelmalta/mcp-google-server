@@ -176,4 +176,78 @@ describe('oauth', () => {
       expect(written).toContain('existing_rt');
     });
   });
+
+  describe('buildClientFromTokens', () => {
+    it('builds a client from valid token JSON with access_token', async () => {
+      const { buildClientFromTokens } = await import('../oauth.js');
+      const tokenJson = JSON.stringify({ access_token: 'at', refresh_token: 'rt' });
+      const client = buildClientFromTokens(tokenJson);
+      expect(client).toBeDefined();
+      expect(mockSetCredentials).toHaveBeenCalledWith({ access_token: 'at', refresh_token: 'rt' });
+    });
+
+    it('builds a client from valid token JSON with only refresh_token', async () => {
+      const { buildClientFromTokens } = await import('../oauth.js');
+      const tokenJson = JSON.stringify({ refresh_token: 'rt' });
+      const client = buildClientFromTokens(tokenJson);
+      expect(client).toBeDefined();
+      expect(mockSetCredentials).toHaveBeenCalledWith({ refresh_token: 'rt' });
+    });
+
+    it('throws on invalid JSON', async () => {
+      const { buildClientFromTokens } = await import('../oauth.js');
+      expect(() => buildClientFromTokens('not-json')).toThrow();
+    });
+
+    it('throws when JSON is not an object (null)', async () => {
+      const { buildClientFromTokens } = await import('../oauth.js');
+      expect(() => buildClientFromTokens('null')).toThrow('Token JSON must be an object');
+    });
+
+    it('throws when JSON is not an object (number)', async () => {
+      const { buildClientFromTokens } = await import('../oauth.js');
+      expect(() => buildClientFromTokens('42')).toThrow('Token JSON must be an object');
+    });
+
+    it('throws when JSON is not an object (array)', async () => {
+      const { buildClientFromTokens } = await import('../oauth.js');
+      expect(() => buildClientFromTokens('[]')).toThrow('Token JSON must be an object');
+    });
+
+    it('throws when token object has no access_token or refresh_token', async () => {
+      const { buildClientFromTokens } = await import('../oauth.js');
+      expect(() => buildClientFromTokens(JSON.stringify({ scope: 'email' }))).toThrow(
+        'Token JSON must contain at least an access_token or refresh_token'
+      );
+    });
+
+    it('throws when GOOGLE_CLIENT_ID is missing', async () => {
+      delete process.env.GOOGLE_CLIENT_ID;
+      vi.resetModules();
+      const { buildClientFromTokens } = await import('../oauth.js');
+      expect(() => buildClientFromTokens(JSON.stringify({ access_token: 'at' }))).toThrow(
+        'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET'
+      );
+    });
+  });
+
+  describe('requireAuth with authContext', () => {
+    it('returns the context client when authContext has a store', async () => {
+      const { requireAuth } = await import('../oauth.js');
+      const { authContext } = await import('../context.js');
+      const mockClient = { credentials: { access_token: 'ctx_at' } } as never;
+      let result: ReturnType<typeof requireAuth> | undefined;
+      authContext.run(mockClient, () => {
+        result = requireAuth();
+      });
+      expect(result).toBe(mockClient);
+    });
+
+    it('falls back to singleton when no authContext store', async () => {
+      sharedCredentials.access_token = 'singleton_at';
+      const { requireAuth } = await import('../oauth.js');
+      const client = requireAuth();
+      expect(client.credentials.access_token).toBe('singleton_at');
+    });
+  });
 });

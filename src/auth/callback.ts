@@ -36,7 +36,7 @@ export function startCallbackServer(): Promise<void> {
       if (error) {
         _authError = error;
         res.writeHead(400, { 'Content-Type': 'text/html' });
-        res.end(htmlPage('Authorization Failed', `<p style="color:red">Error: ${error}</p><p>Return to Claude and try again.</p>`));
+        res.end(htmlPage('Authorization Failed', `<p style="color:red">Error: ${escapeHtml(error)}</p><p>Return to Claude and try again.</p>`));
         stopCallbackServer();
         return;
       }
@@ -57,7 +57,7 @@ export function startCallbackServer(): Promise<void> {
       } catch (err) {
         _authError = err instanceof Error ? err.message : String(err);
         res.writeHead(500, { 'Content-Type': 'text/html' });
-        res.end(htmlPage('Authorization Failed', `<p style="color:red">Token exchange failed: ${_authError}</p>`));
+        res.end(htmlPage('Authorization Failed', `<p style="color:red">Token exchange failed: ${escapeHtml(_authError ?? '')}</p>`));
       }
 
       stopCallbackServer();
@@ -81,6 +81,15 @@ export function stopCallbackServer(): void {
 
 export function getAuthStatus(): { complete: boolean; error: string | null } {
   return { complete: _authComplete, error: _authError };
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
 }
 
 function htmlPage(title: string, body: string): string {

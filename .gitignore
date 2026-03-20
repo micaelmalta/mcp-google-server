@@ -37,3 +37,6 @@ npm-debug.log*
 
 # Coverage
 coverage/
+
+# Config
+config.yml
