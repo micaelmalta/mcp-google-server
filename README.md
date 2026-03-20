@@ -212,14 +212,67 @@ Open the URL it returns, sign in with Google, and grant permissions. Tokens are 
 
 ---
 
+## HTTP Mode
+
+In addition to stdio (the default), the server can run as an HTTP server. This is how it runs in Kubernetes — each request is stateless and must supply a Google OAuth token JSON in the `X-Google-Tokens` header.
+
+### Running locally in HTTP mode
+
+```bash
+TRANSPORT=http \
+PORT=3000 \
+GOOGLE_CLIENT_ID=your_client_id \
+GOOGLE_CLIENT_SECRET=your_client_secret \
+node dist/index.js
+```
+
+The server exposes:
+- `GET /health` — liveness/readiness probe, returns `{"status":"ok"}`
+- `POST /mcp` — MCP endpoint, requires `X-Google-Tokens` header
+
+### Getting a token to use with HTTP mode
+
+You need a valid Google OAuth token JSON. The easiest way is to run the server in stdio mode once to authorize, then copy the saved tokens:
+
+```bash
+# 1. Run in stdio mode and call google_auth_start to authorize
+GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... node dist/index.js
+
+# 2. After authorizing, the tokens are saved to ~/.google-mcp-tokens.json
+cat ~/.google-mcp-tokens.json
+```
+
+### Making a request
+
+```bash
+TOKEN=$(cat ~/.google-mcp-tokens.json)
+
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -H "X-Google-Tokens: $TOKEN" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+### Token refresh
+
+If the access token expires mid-request, `google-auth-library` refreshes it automatically. The updated token JSON is returned in the `X-Google-Tokens-Refreshed` response header — store it and use it for subsequent requests to avoid unnecessary token refreshes.
+
+### Auth tools in HTTP mode
+
+`google_auth_start`, `google_auth_status`, and `google_auth_revoke` are not registered in HTTP mode — they rely on local disk/port 8080 and are not meaningful in a stateless server environment.
+
+---
+
 ## Environment Variables
 
-| Variable               | Required | Default                          | Description                                |
-| ---------------------- | -------- | -------------------------------- | ------------------------------------------ |
-| `GOOGLE_CLIENT_ID`     | Yes      | —                                | OAuth2 Client ID from Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | Yes      | —                                | OAuth2 Client Secret                       |
-| `GOOGLE_REDIRECT_URI`  | No       | `http://localhost:8080/callback` | Must match Google Cloud Console            |
-| `GOOGLE_TOKENS_PATH`   | No       | `~/.google-mcp-tokens.json`      | Where to store OAuth tokens                |
+| Variable               | Required | Default                          | Description                                      |
+| ---------------------- | -------- | -------------------------------- | ------------------------------------------------ |
+| `GOOGLE_CLIENT_ID`     | Yes      | —                                | OAuth2 Client ID from Google Cloud Console       |
+| `GOOGLE_CLIENT_SECRET` | Yes      | —                                | OAuth2 Client Secret                             |
+| `GOOGLE_REDIRECT_URI`  | No       | `http://localhost:8080/callback` | Must match Google Cloud Console (stdio mode only)|
+| `GOOGLE_TOKENS_PATH`   | No       | `~/.google-mcp-tokens.json`      | Where to store OAuth tokens (stdio mode only)    |
+| `TRANSPORT`            | No       | `stdio`                          | Set to `http` to run as an HTTP server           |
+| `PORT`                 | No       | `3000`                           | HTTP server port (HTTP mode only)                |
 
 ---
 
