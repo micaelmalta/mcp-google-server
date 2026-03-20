@@ -24,6 +24,32 @@ import { OAuthTokensSchema } from '@modelcontextprotocol/sdk/shared/auth.js';
  *   7. Client POSTs code to /token → we exchange with Google using our callback URI
  *   8. Client receives Google access token, sends it as Bearer on /mcp requests
  */
+/**
+ * Allowed redirect URI schemes for MCP clients. Only known MCP client schemes
+ * and localhost HTTP are permitted to prevent authorization code theft via
+ * open redirect.
+ */
+const ALLOWED_REDIRECT_SCHEMES = new Set([
+  'http:',     // localhost callbacks (validated below)
+  'https:',    // standard web callbacks
+  'cursor:',   // Cursor IDE
+  'vscode:',   // VS Code
+  'vscode-insiders:', // VS Code Insiders
+]);
+
+function isAllowedRedirectUri(uri: string): boolean {
+  try {
+    const url = new URL(uri);
+    // http:// only allowed for localhost
+    if (url.protocol === 'http:' && !['localhost', '127.0.0.1', '::1'].includes(url.hostname)) {
+      return false;
+    }
+    return ALLOWED_REDIRECT_SCHEMES.has(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
 export class GoogleOAuthProvider implements OAuthServerProvider {
   private readonly _googleClientId: string;
   private readonly _googleClientSecret: string;
@@ -56,11 +82,16 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
     return {
       getClient: async (clientId: string) => this._clients.get(clientId),
       registerClient: async (client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>) => {
+        // Issue a proxy secret — never expose the real Google client_secret.
+        // The proxy secret is used by the MCP client for client_secret_post auth
+        // against our /token endpoint. We use the real secret internally when
+        // proxying to Google.
+        const proxySecret = crypto.randomUUID();
         const registered: OAuthClientInformationFull = {
           ...client,
           client_id: this._googleClientId,
           client_id_issued_at: Math.floor(Date.now() / 1000),
-          client_secret: this._googleClientSecret,
+          client_secret: proxySecret,
         };
         this._clients.set(registered.client_id, registered);
         return registered;
@@ -69,6 +100,10 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
   }
 
   async authorize(_client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
+    if (!isAllowedRedirectUri(params.redirectUri)) {
+      res.status(400).json({ error: 'invalid_request', error_description: 'Disallowed redirect_uri scheme' });
+      return;
+    }
     this._cleanExpiredRedirects();
     const state = params.state ?? crypto.randomUUID();
     this._pendingRedirects.set(state, { redirectUri: params.redirectUri, createdAt: Date.now() });
@@ -113,17 +148,17 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
   }
 
   async exchangeAuthorizationCode(
-    client: OAuthClientInformationFull,
+    _client: OAuthClientInformationFull,
     authorizationCode: string,
     codeVerifier?: string,
   ): Promise<OAuthTokens> {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: client.client_id,
+      client_id: this._googleClientId,
+      client_secret: this._googleClientSecret,  // Use real secret, not proxy
       code: authorizationCode,
       redirect_uri: this._callbackUrl,  // Must match what we sent to Google
     });
-    if (client.client_secret) params.append('client_secret', client.client_secret);
     if (codeVerifier) params.append('code_verifier', codeVerifier);
 
     const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -139,16 +174,16 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
   }
 
   async exchangeRefreshToken(
-    client: OAuthClientInformationFull,
+    _client: OAuthClientInformationFull,
     refreshToken: string,
     scopes?: string[],
   ): Promise<OAuthTokens> {
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
-      client_id: client.client_id,
+      client_id: this._googleClientId,
+      client_secret: this._googleClientSecret,  // Use real secret, not proxy
       refresh_token: refreshToken,
     });
-    if (client.client_secret) params.set('client_secret', client.client_secret);
     if (scopes?.length) params.set('scope', scopes.join(' '));
 
     const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -167,6 +202,12 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
     const client = new OAuth2Client();
     const tokenInfo = await client.getTokenInfo(token);
     if (!tokenInfo.expiry_date) throw new Error('Token has no expiry');
+
+    // Verify the token was issued for this application, not a different OAuth client
+    if (tokenInfo.aud !== this._googleClientId) {
+      throw new Error('Token audience does not match this application');
+    }
+
     return {
       token,
       clientId: tokenInfo.aud as string,

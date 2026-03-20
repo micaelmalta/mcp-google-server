@@ -129,10 +129,25 @@ export function isAuthenticated(): boolean {
  *
  * In HTTP mode, returns the per-request client from AsyncLocalStorage.
  * In stdio mode, returns the persistent singleton loaded from disk.
+ *
+ * In HTTP mode (TRANSPORT=http), the context client MUST be present —
+ * falling back to the stdio singleton would be a security issue (leaking
+ * one user's credentials to another). If the context is missing, it means
+ * an async operation escaped the AsyncLocalStorage context (e.g. via
+ * setTimeout or a library that doesn't propagate async context).
  */
 export function requireAuth(): OAuth2Client {
+  const isHttpMode = process.env.TRANSPORT === 'http';
   const contextClient = authContext.getStore();
+
   if (contextClient) return contextClient;
+
+  if (isHttpMode) {
+    throw new Error(
+      'No per-request auth context available. This is a bug — the request may have ' +
+      'escaped the AsyncLocalStorage context (e.g. via setTimeout or untracked callback).'
+    );
+  }
 
   const client = getOAuthClient();
   const creds = client.credentials;
