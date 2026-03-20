@@ -76,6 +76,20 @@ describe('shouldRegisterTool — empty config', () => {
     expect(shouldRegisterTool('google_gmail_send_email', {})).toBe(true);
     expect(shouldRegisterTool('google_drive_delete_file', {})).toBe(true);
   });
+
+  it('allows unknown tools when not in readOnly mode', () => {
+    expect(shouldRegisterTool('google_calendar_search_events', {})).toBe(true);
+  });
+});
+
+describe('shouldRegisterTool — readOnly: unknown tool', () => {
+  it('blocks and warns for tools not in TOOL_READ_ONLY map', () => {
+    const written: string[] = [];
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation((s) => { written.push(s as string); return true; });
+    expect(shouldRegisterTool('google_calendar_search_events', { readOnly: true })).toBe(false);
+    expect(written[0]).toContain('not in TOOL_READ_ONLY map');
+    spy.mockRestore();
+  });
 });
 
 // ---------------------------------------------------------------------------

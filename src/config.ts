@@ -129,6 +129,10 @@ export function shouldRegisterTool(toolName: string, config: ServerConfig): bool
   // readOnly filter: skip tools that are not read-only
   if (config.readOnly) {
     const isReadOnly = TOOL_READ_ONLY[toolName];
+    if (isReadOnly === undefined) {
+      process.stderr.write(JSON.stringify({ level: 'warn', msg: `Tool "${toolName}" not in TOOL_READ_ONLY map — skipping in readOnly mode` }) + '\n');
+      return false;
+    }
     if (!isReadOnly) return false;
   }
 

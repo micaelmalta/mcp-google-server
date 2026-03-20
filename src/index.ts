@@ -56,7 +56,7 @@ function createServer(
     // Wrap registerTool to filter by config — zero changes to individual tool files
     const originalRegister = server.registerTool.bind(server);
     server.registerTool = (name: string, opts: unknown, handler: unknown) => {
-      if (!shouldRegisterTool(name, config)) return server as unknown as ReturnType<typeof originalRegister>;
+      if (!shouldRegisterTool(name, config)) return undefined as never;
       return (originalRegister as (...args: unknown[]) => unknown)(name, opts, handler) as ReturnType<typeof originalRegister>;
     };
   }
