@@ -230,6 +230,35 @@ The server exposes:
 - `GET /health` — liveness/readiness probe, returns `{"status":"ok"}`
 - `POST /mcp` — MCP endpoint, requires `X-Google-Tokens` header
 
+### Configuring Claude to use HTTP mode
+
+#### Claude CLI
+
+```bash
+claude mcp add google-workspace \
+  --transport http \
+  --header "X-Google-Tokens: $(cat ~/.google-mcp-tokens.json)" \
+  http://localhost:3000/mcp
+```
+
+#### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "google-workspace": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp",
+      "headers": {
+        "X-Google-Tokens": "<paste contents of ~/.google-mcp-tokens.json>"
+      }
+    }
+  }
+}
+```
+
 ### Getting a token to use with HTTP mode
 
 You need a valid Google OAuth token JSON. The easiest way is to run the server in stdio mode once to authorize, then copy the saved tokens:
