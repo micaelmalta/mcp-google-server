@@ -3,7 +3,8 @@
 # Copy this file to config.yml (or set CONFIG_PATH env var) to customise
 # which tools are exposed and whether OAuth scopes are restricted to read-only.
 #
-# All fields are optional. Omitting the file registers all tools with full scopes.
+# All fields are optional. Omitting the file defaults to readOnly: true (read-only mode).
+# Set readOnly: false explicitly to enable write tools and full OAuth scopes.
 
 # readOnly: true
 #   - Only registers tools whose annotations have readOnlyHint: true
