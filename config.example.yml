@@ -1,0 +1,27 @@
+# Google Workspace MCP Server — HTTP mode configuration
+#
+# Copy this file to config.yml (or set CONFIG_PATH env var) to customise
+# which tools are exposed and whether OAuth scopes are restricted to read-only.
+#
+# All fields are optional. Omitting the file defaults to readOnly: true (read-only mode).
+# Set readOnly: false explicitly to enable write tools and full OAuth scopes.
+
+# readOnly: true
+#   - Only registers tools whose annotations have readOnlyHint: true
+#   - Requests narrower read-only OAuth scopes (e.g. calendar.readonly instead of calendar)
+#   - Has no effect in stdio mode (configure tool access there via your MCP client)
+readOnly: false
+
+# enabledTools: list of group names and/or exact tool names to register.
+# If omitted, all tools are registered (subject to readOnly filtering above).
+#
+# Group names:  auth, calendar, gmail, drive, docs, sheets, slides, directory
+# Tool names:   e.g. google_calendar_list_events, google_drive_list_files
+#
+# Both filters stack: a tool must pass readOnly AND enabledTools to be registered.
+#
+# enabledTools:
+#   - calendar                      # entire calendar group (9 tools)
+#   - gmail                         # entire gmail group
+#   - google_drive_list_files       # single tool from drive group
+#   - google_drive_search_files     # single tool from drive group
