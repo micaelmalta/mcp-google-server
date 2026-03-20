@@ -30,8 +30,10 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
   private readonly _clients = new Map<string, OAuthClientInformationFull>();
   private readonly _callbackUrl: string;
 
-  // Maps state → original client redirect_uri (for the callback proxy)
-  private readonly _pendingRedirects = new Map<string, string>();
+  // Maps state → { redirectUri, createdAt } for the callback proxy.
+  // Entries expire after 10 minutes to prevent unbounded growth from abandoned flows.
+  private static readonly REDIRECT_TTL_MS = 10 * 60 * 1000;
+  private readonly _pendingRedirects = new Map<string, { redirectUri: string; createdAt: number }>();
 
   skipLocalPkceValidation = true;
 
@@ -39,6 +41,15 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
     this._googleClientId = googleClientId;
     this._googleClientSecret = googleClientSecret;
     this._callbackUrl = callbackUrl;
+  }
+
+  private _cleanExpiredRedirects(): void {
+    const now = Date.now();
+    for (const [state, entry] of this._pendingRedirects) {
+      if (now - entry.createdAt > GoogleOAuthProvider.REDIRECT_TTL_MS) {
+        this._pendingRedirects.delete(state);
+      }
+    }
   }
 
   get clientsStore(): OAuthRegisteredClientsStore {
@@ -58,9 +69,9 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
   }
 
   async authorize(_client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
-    // Store the original redirect_uri so we can forward the code later
+    this._cleanExpiredRedirects();
     const state = params.state ?? crypto.randomUUID();
-    this._pendingRedirects.set(state, params.redirectUri);
+    this._pendingRedirects.set(state, { redirectUri: params.redirectUri, createdAt: Date.now() });
 
     const targetUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     const searchParams = new URLSearchParams({
@@ -83,14 +94,14 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
    * Looks up the original client redirect_uri and forwards the code+state.
    */
   handleCallback(code: string, state: string, res: Response): void {
-    const originalRedirectUri = this._pendingRedirects.get(state);
-    if (!originalRedirectUri) {
-      res.status(400).send('Unknown state parameter — authorization flow may have expired.');
+    const entry = this._pendingRedirects.get(state);
+    if (!entry) {
+      res.status(400).json({ error: 'invalid_state', description: 'Unknown or expired state parameter' });
       return;
     }
     this._pendingRedirects.delete(state);
 
-    const redirectUrl = new URL(originalRedirectUri);
+    const redirectUrl = new URL(entry.redirectUri);
     redirectUrl.searchParams.set('code', code);
     redirectUrl.searchParams.set('state', state);
     res.redirect(redirectUrl.toString());
