@@ -54,14 +54,8 @@ export function getOAuthClient(): OAuth2Client {
  * Builds a one-off OAuth2Client from a token JSON string (for HTTP mode).
  * The token JSON should contain at minimum a refresh_token.
  * Access tokens are refreshed automatically by the google-auth-library.
- *
- * Returns the client and a getter for any tokens refreshed during the request,
- * so callers can propagate refreshed tokens back to the client via a response header.
  */
-export function buildClientFromTokens(tokenJson: string): {
-  client: OAuth2Client;
-  getRefreshedTokens: () => Credentials | null;
-} {
+export function buildClientFromTokens(tokenJson: string): OAuth2Client {
   const { clientId, clientSecret, redirectUri } = getCredentials();
   const client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   const parsed: unknown = JSON.parse(tokenJson);
@@ -73,13 +67,7 @@ export function buildClientFromTokens(tokenJson: string): {
     throw new Error('Token JSON must contain at least an access_token or refresh_token');
   }
   client.setCredentials(tokens);
-
-  let refreshedTokens: Credentials | null = null;
-  client.on('tokens', (newTokens) => {
-    refreshedTokens = { ...tokens, ...newTokens };
-  });
-
-  return { client, getRefreshedTokens: () => refreshedTokens };
+  return client;
 }
 
 /**

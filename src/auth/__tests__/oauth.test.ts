@@ -181,29 +181,17 @@ describe('oauth', () => {
     it('builds a client from valid token JSON with access_token', async () => {
       const { buildClientFromTokens } = await import('../oauth.js');
       const tokenJson = JSON.stringify({ access_token: 'at', refresh_token: 'rt' });
-      const { client, getRefreshedTokens } = buildClientFromTokens(tokenJson);
+      const client = buildClientFromTokens(tokenJson);
       expect(client).toBeDefined();
-      expect(getRefreshedTokens()).toBeNull();
       expect(mockSetCredentials).toHaveBeenCalledWith({ access_token: 'at', refresh_token: 'rt' });
     });
 
     it('builds a client from valid token JSON with only refresh_token', async () => {
       const { buildClientFromTokens } = await import('../oauth.js');
       const tokenJson = JSON.stringify({ refresh_token: 'rt' });
-      const { client } = buildClientFromTokens(tokenJson);
+      const client = buildClientFromTokens(tokenJson);
       expect(client).toBeDefined();
       expect(mockSetCredentials).toHaveBeenCalledWith({ refresh_token: 'rt' });
-    });
-
-    it('captures refreshed tokens via getRefreshedTokens', async () => {
-      vi.resetModules();
-      const { buildClientFromTokens } = await import('../oauth.js');
-      const tokenJson = JSON.stringify({ refresh_token: 'rt' });
-      const { getRefreshedTokens } = buildClientFromTokens(tokenJson);
-      expect(getRefreshedTokens()).toBeNull();
-      // Simulate google-auth-library emitting a token refresh event
-      tokensCallback!({ access_token: 'new_at' });
-      expect(getRefreshedTokens()).toMatchObject({ access_token: 'new_at', refresh_token: 'rt' });
     });
 
     it('throws on invalid JSON', async () => {

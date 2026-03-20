@@ -100,9 +100,8 @@ async function runHttp(port: number): Promise<void> {
     }
 
     let client;
-    let getRefreshedTokens: () => object | null = () => null;
     try {
-      ({ client, getRefreshedTokens } = buildClientFromTokens(tokenHeader));
+      client = buildClientFromTokens(tokenHeader);
     } catch (err) {
       const isConfigError = err instanceof Error && err.message.includes('environment variables are required');
       if (isConfigError) {
@@ -128,13 +127,18 @@ async function runHttp(port: number): Promise<void> {
     const server = createServer({ includeAuthTools: false });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
 
+    // Set the header eagerly via the tokens event — by the time handleRequest()
+    // resolves, the response is already flushed so res.setHeader() would be too late.
+    client.on('tokens', (newTokens) => {
+      const merged = { ...JSON.parse(tokenHeader), ...newTokens };
+      if (!res.headersSent) {
+        res.setHeader('X-Google-Tokens-Refreshed', JSON.stringify(merged));
+      }
+    });
+
     try {
       await server.connect(transport);
       await authContext.run(client, () => transport.handleRequest(req, res, req.body));
-      const refreshed = getRefreshedTokens();
-      if (refreshed && !res.headersSent) {
-        res.setHeader('X-Google-Tokens-Refreshed', JSON.stringify(refreshed));
-      }
     } catch (error) {
       console.error('[google-workspace-mcp] Error handling request:', error);
       if (!res.headersSent) {
