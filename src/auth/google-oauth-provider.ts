@@ -53,7 +53,6 @@ function isAllowedRedirectUri(uri: string): boolean {
 export class GoogleOAuthProvider implements OAuthServerProvider {
   private readonly _googleClientId: string;
   private readonly _googleClientSecret: string;
-  private readonly _clients = new Map<string, OAuthClientInformationFull>();
   private readonly _callbackUrl: string;
 
   // Maps state → { redirectUri, createdAt } for the callback proxy.
@@ -79,23 +78,24 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
   }
 
   get clientsStore(): OAuthRegisteredClientsStore {
+    // No persistent storage needed. We always use the same Google client_id
+    // internally, so getClient returns a static object for any matching ID
+    // and registerClient is a pass-through. Server restarts don't break anything.
+    const staticClient: OAuthClientInformationFull = {
+      client_id: this._googleClientId,
+      client_id_issued_at: 0,
+      redirect_uris: [],
+    };
+
     return {
-      getClient: async (clientId: string) => this._clients.get(clientId),
-      registerClient: async (client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>) => {
-        // Issue a proxy secret — never expose the real Google client_secret.
-        // The proxy secret is used by the MCP client for client_secret_post auth
-        // against our /token endpoint. We use the real secret internally when
-        // proxying to Google.
-        const proxySecret = crypto.randomUUID();
-        const registered: OAuthClientInformationFull = {
-          ...client,
-          client_id: this._googleClientId,
-          client_id_issued_at: Math.floor(Date.now() / 1000),
-          client_secret: proxySecret,
-        };
-        this._clients.set(registered.client_id, registered);
-        return registered;
-      },
+      getClient: async (clientId: string) =>
+        clientId === this._googleClientId ? staticClient : undefined,
+
+      registerClient: async (client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>) => ({
+        ...client,
+        client_id: this._googleClientId,
+        client_id_issued_at: Math.floor(Date.now() / 1000),
+      }),
     };
   }
 
