@@ -24,6 +24,7 @@ LABEL org.opencontainers.image.title="mcp-google-server"
 LABEL org.opencontainers.image.description="MCP server for Google Workspace APIs"
 LABEL org.opencontainers.image.created=$BUILD_TIME
 LABEL org.opencontainers.image.revision=$COMMIT_SHA
+LABEL org.opencontainers.image.version=$VERSION
 
 ENV TRANSPORT=http
 ENV PORT=3000

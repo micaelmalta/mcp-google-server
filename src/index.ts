@@ -132,7 +132,7 @@ async function runHttp(port: number): Promise<void> {
   app.get('/oauth/callback', (req, res) => {
     const { code, state, error } = req.query;
     if (error) {
-      res.status(400).send(`Google authorization error: ${error}`);
+      res.status(400).json({ error: 'authorization_error', description: 'Google authorization failed' });
       return;
     }
     if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
