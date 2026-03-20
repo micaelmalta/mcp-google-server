@@ -1,6 +1,10 @@
 # Google Workspace MCP Server
 
-An MCP (Model Context Protocol) server that connects Claude to your Google Workspace using OAuth2. Supports Calendar, Gmail, Drive, Docs, Sheets, and Slides.
+An MCP (Model Context Protocol) server that connects AI clients to your Google Workspace. Supports Calendar, Gmail, Drive, Docs, Sheets, Slides, and Contacts/Directory.
+
+Runs in two modes:
+- **Stdio** (default) — for local use with Claude CLI/Desktop. Auth via `google_auth_start` tool, tokens stored on disk.
+- **HTTP** — for shared deployments and MCP clients like Cursor. Implements OAuth 2.1 so clients handle Google sign-in automatically.
 
 ## Setup
 
@@ -18,7 +22,9 @@ An MCP (Model Context Protocol) server that connects Claude to your Google Works
    - Google People API
 4. Go to **Credentials** → **Create Credentials** → **OAuth client ID**
 5. Application type: **Web application**
-6. Add Authorized redirect URI: `http://localhost:8080/callback`
+6. Add Authorized redirect URIs:
+   - `http://localhost:8080/callback` (for stdio mode)
+   - `http://localhost:3000/oauth/callback` (for HTTP mode — adjust port if needed)
 7. Download the credentials and note your **Client ID** and **Client Secret**
 
 ### 2. Configure OAuth Consent Screen
@@ -32,8 +38,8 @@ An MCP (Model Context Protocol) server that connects Claude to your Google Works
    - `https://www.googleapis.com/auth/spreadsheets`
    - `https://www.googleapis.com/auth/presentations`
    - `https://www.googleapis.com/auth/drive`
-   - `https://www.googleapis.com/auth/gmail.readonly`
-   - `https://mail.google.com/`
+   - `https://www.googleapis.com/auth/gmail.modify`
+   - `https://www.googleapis.com/auth/gmail.send`
    - `https://www.googleapis.com/auth/contacts.readonly`
    - `https://www.googleapis.com/auth/directory.readonly`
 
@@ -50,9 +56,13 @@ npm install
 npm run build
 ```
 
-### 4. Configure Claude
+---
 
-#### Claude CLI
+## Stdio Mode (Claude CLI / Claude Desktop)
+
+Stdio mode runs as a subprocess managed by the MCP client. Auth is handled via the `google_auth_start` tool and tokens are persisted to `~/.google-mcp-tokens.json`.
+
+### Claude CLI
 
 From GitHub (no local clone):
 
@@ -72,17 +82,9 @@ claude mcp add google-workspace \
   -- node /path/to/mcp-google-server/dist/index.js
 ```
 
-To verify it was added:
-
-```bash
-claude mcp list
-```
-
-#### Claude Desktop
+### Claude Desktop
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-From GitHub (no local clone):
 
 ```json
 {
@@ -99,34 +101,87 @@ From GitHub (no local clone):
 }
 ```
 
-From local install:
+### Authorize
+
+In Claude, run: **"Use the google_auth_start tool"**
+
+Open the URL it returns, sign in with Google, and grant permissions. Tokens are saved to `~/.google-mcp-tokens.json` and auto-refresh. You only need to re-authorize if:
+
+- You run `google_auth_revoke`
+- The refresh token expires (6 months of inactivity)
+- You revoke access from [Google Account Security](https://myaccount.google.com/permissions)
+
+---
+
+## HTTP Mode (Cursor / Shared Deployments)
+
+HTTP mode runs as a standalone server with built-in OAuth 2.1. MCP clients connect via URL and the server handles the Google sign-in flow automatically — no manual token management needed.
+
+### How it works
+
+1. MCP client connects to `http://localhost:3000/mcp`
+2. Server advertises OAuth 2.1 metadata at `/.well-known/oauth-authorization-server`
+3. Client registers via `/register` and redirects the user to `/authorize`
+4. Server proxies to Google's sign-in page
+5. After sign-in, Google redirects to `/oauth/callback`, which forwards the auth code back to the client
+6. Client exchanges the code for tokens via `/token`
+7. Client sends `Authorization: Bearer <token>` on each `/mcp` request
+
+The server is fully stateless — no tokens or sessions stored on disk. Each user gets their own Google access token. Server restarts don't break existing client sessions (clients re-register transparently).
+
+### Starting the server
+
+```bash
+TRANSPORT=http \
+PORT=3000 \
+GOOGLE_CLIENT_ID=your_client_id \
+GOOGLE_CLIENT_SECRET=your_client_secret \
+node dist/index.js
+```
+
+### Cursor
+
+Add to your Cursor MCP config (`.cursor/mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "google-workspace": {
-      "command": "node",
-      "args": ["/path/to/mcp-google-server/dist/index.js"],
-      "env": {
-        "GOOGLE_CLIENT_ID": "your_client_id_here",
-        "GOOGLE_CLIENT_SECRET": "your_client_secret_here"
-      }
+      "type": "http",
+      "url": "http://localhost:3000/mcp"
     }
   }
 }
 ```
 
-### 5. Authorize
+On first tool use, Cursor will open a browser window for Google sign-in. After that, it handles token refresh automatically.
 
-In Claude, run: **"Use the google_auth_start tool"**
+### Endpoints
 
-Open the URL it returns, sign in with Google, and grant permissions. Tokens are saved to `~/.google-mcp-tokens.json`.
+| Endpoint | Description |
+|---|---|
+| `GET /.well-known/oauth-authorization-server` | OAuth 2.1 server metadata |
+| `GET /.well-known/oauth-protected-resource` | Protected resource metadata |
+| `POST /register` | Dynamic client registration |
+| `GET /authorize` | Redirects to Google sign-in |
+| `POST /token` | Token exchange and refresh |
+| `POST /revoke` | Token revocation |
+| `GET /oauth/callback` | Google redirect proxy (forwards auth code to MCP client) |
+| `GET /health` | Liveness/readiness probe |
+| `POST /mcp` | MCP endpoint (requires `Authorization: Bearer` header) |
+
+### Security
+
+- **Redirect URI allowlist** — only `cursor://`, `vscode://`, `https://`, and `http://localhost` are accepted
+- **Token audience check** — Bearer tokens are validated against the server's Google client ID
+- **No secret exposure** — the Google client_secret is never sent to MCP clients
+- **Per-request auth isolation** — each request is scoped via `AsyncLocalStorage`, no cross-user leakage
 
 ---
 
 ## Available Tools
 
-### Authentication
+### Authentication (stdio mode only)
 
 | Tool                 | Description                                   |
 | -------------------- | --------------------------------------------- |
@@ -212,77 +267,16 @@ Open the URL it returns, sign in with Google, and grant permissions. Tokens are 
 
 ---
 
-## HTTP Mode
-
-HTTP mode is designed for **server deployments** (e.g. Kubernetes) where the server is shared across users and must be stateless. Each request supplies its own Google OAuth token JSON via the `X-Google-Tokens` header — no tokens are stored on disk.
-
-> **For local development with Claude Desktop or Cursor, use stdio mode (the default).** It handles auth automatically via `google_auth_start` and stores tokens locally. HTTP mode is only needed when deploying the server to a shared environment.
-
-### Starting the server
-
-```bash
-TRANSPORT=http \
-PORT=3000 \
-GOOGLE_CLIENT_ID=your_client_id \
-GOOGLE_CLIENT_SECRET=your_client_secret \
-node dist/index.js
-```
-
-The server exposes:
-- `GET /health` — liveness/readiness probe, returns `{"status":"ok"}`
-- `POST /mcp` — MCP endpoint, requires `X-Google-Tokens` header
-
-### Obtaining tokens
-
-Tokens must be obtained out-of-band (e.g. via a separate OAuth flow in your application) and passed per-request. The token JSON must contain at least an `access_token` or `refresh_token`.
-
-If you need a quick token for testing, you can reuse the tokens saved by stdio mode:
-
-```bash
-cat ~/.google-mcp-tokens.json
-```
-
-### Making a request
-
-```bash
-TOKEN=$(cat ~/.google-mcp-tokens.json)
-
-curl -X POST http://localhost:3000/mcp \
-  -H "Content-Type: application/json" \
-  -H "X-Google-Tokens: $TOKEN" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-```
-
-### Token refresh
-
-If the access token expires mid-request, `google-auth-library` refreshes it transparently. The updated token JSON is returned in an `X-Google-Tokens-Refreshed` response header — callers should store it and use it for subsequent requests to avoid redundant refreshes.
-
-### Auth tools
-
-`google_auth_start`, `google_auth_status`, and `google_auth_revoke` are not available in HTTP mode — they are only meaningful in stdio mode where tokens are managed locally.
-
----
-
 ## Environment Variables
 
-| Variable               | Required | Default                          | Description                                      |
-| ---------------------- | -------- | -------------------------------- | ------------------------------------------------ |
-| `GOOGLE_CLIENT_ID`     | Yes      | —                                | OAuth2 Client ID from Google Cloud Console       |
-| `GOOGLE_CLIENT_SECRET` | Yes      | —                                | OAuth2 Client Secret                             |
-| `GOOGLE_REDIRECT_URI`  | No       | `http://localhost:8080/callback` | Must match Google Cloud Console (stdio mode only)|
-| `GOOGLE_TOKENS_PATH`   | No       | `~/.google-mcp-tokens.json`      | Where to store OAuth tokens (stdio mode only)    |
-| `TRANSPORT`            | No       | `stdio`                          | Set to `http` to run as an HTTP server           |
-| `PORT`                 | No       | `3000`                           | HTTP server port (HTTP mode only)                |
-
----
-
-## Token Storage
-
-OAuth tokens are saved to `~/.google-mcp-tokens.json` with `chmod 600` permissions. The file contains both access and refresh tokens. The access token auto-refreshes — you only need to re-authorize if:
-
-- You run `google_auth_revoke`
-- The refresh token expires (6 months of inactivity)
-- You revoke access from [Google Account Security](https://myaccount.google.com/permissions)
+| Variable               | Required | Default                          | Description                                         |
+| ---------------------- | -------- | -------------------------------- | --------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`     | Yes      | —                                | OAuth2 Client ID from Google Cloud Console          |
+| `GOOGLE_CLIENT_SECRET` | Yes      | —                                | OAuth2 Client Secret                                |
+| `TRANSPORT`            | No       | `stdio`                          | Set to `http` to run as an HTTP server              |
+| `PORT`                 | No       | `3000`                           | HTTP server port (HTTP mode only)                   |
+| `GOOGLE_REDIRECT_URI`  | No       | `http://localhost:8080/callback` | OAuth callback URL (stdio mode only)                |
+| `GOOGLE_TOKENS_PATH`   | No       | `~/.google-mcp-tokens.json`     | Where to store OAuth tokens (stdio mode only)       |
 
 ---
 
@@ -294,6 +288,12 @@ npm run dev
 
 # Build TypeScript
 npm run build
+
+# Run tests
+npm test
+
+# Lint
+npm run lint
 
 # Test with MCP Inspector
 npx @modelcontextprotocol/inspector node dist/index.js
