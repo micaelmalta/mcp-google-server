@@ -38,6 +38,10 @@ import { GoogleOAuthProvider, clientFromBearerToken } from './auth/google-oauth-
 import { authContext } from './auth/context.js';
 import { loadConfig, shouldRegisterTool, getScopesForConfig, type ServerConfig } from './config.js';
 
+function log(level: 'info' | 'warn' | 'error', msg: string, extra?: Record<string, unknown>): void {
+  process.stderr.write(JSON.stringify({ level, msg, ...extra }) + '\n');
+}
+
 function createServer(
   opts: { includeAuthTools: boolean; config?: ServerConfig } = { includeAuthTools: true }
 ): McpServer {
@@ -73,17 +77,13 @@ function createServer(
 
 async function runStdio(): Promise<void> {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    console.error(
-      '[google-workspace-mcp] WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set. ' +
-        'Set these environment variables to enable Google API access. ' +
-        'See .env.example for instructions.'
-    );
+    log('warn', 'GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set — Google API access will be unavailable');
   }
 
   const server = createServer({ includeAuthTools: true });
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('[google-workspace-mcp] Server running via stdio');
+  log('info', 'Server running via stdio');
 }
 
 async function runHttp(port: number): Promise<void> {
@@ -91,17 +91,17 @@ async function runHttp(port: number): Promise<void> {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    console.error('[google-workspace-mcp] ERROR: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required in HTTP mode.');
+    log('error', 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required in HTTP mode');
     process.exit(1);
   }
 
   const config = loadConfig();
   const scopes = getScopesForConfig(config);
   if (config.readOnly || config.enabledTools) {
-    console.error(
-      `[google-workspace-mcp] Config loaded: readOnly=${config.readOnly ?? false}, ` +
-      `enabledTools=${config.enabledTools ? config.enabledTools.join(',') : 'all'}`
-    );
+    log('info', 'Config loaded', {
+      readOnly: config.readOnly ?? false,
+      enabledTools: config.enabledTools ?? 'all',
+    });
   }
 
   const issuerUrl = new URL(`http://localhost:${port}`);
@@ -185,7 +185,7 @@ async function runHttp(port: number): Promise<void> {
         await server.connect(transport);
         await authContext.run(oauthClient, () => transport.handleRequest(req, res, req.body));
       } catch (error) {
-        console.error('[google-workspace-mcp] Error handling request:', error);
+        log('error', 'Error handling request', { error: String(error) });
         if (!res.headersSent) {
           res.status(500).json({
             jsonrpc: '2.0',
@@ -200,13 +200,24 @@ async function runHttp(port: number): Promise<void> {
     }
   );
 
+  // Catch-all error handler — logs anything not already handled above
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction): void => {
+    log('error', 'Unhandled Express error', { error: String(err) });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'server_error', error_description: 'Internal Server Error' });
+    }
+  });
+
   const httpServer = app.listen(port, () => {
-    console.error(`[google-workspace-mcp] Server running via HTTP on port ${port}`);
-    console.error(`[google-workspace-mcp] OAuth metadata: http://localhost:${port}/.well-known/oauth-authorization-server`);
+    log('info', 'Server running via HTTP', {
+      port,
+      oauthMetadata: `http://localhost:${port}/.well-known/oauth-authorization-server`,
+    });
   });
 
   process.on('SIGTERM', () => {
-    console.error('[google-workspace-mcp] SIGTERM received, shutting down gracefully');
+    log('info', 'SIGTERM received, shutting down gracefully');
     httpServer.close();
   });
 }
@@ -219,13 +230,13 @@ async function main(): Promise<void> {
     await runHttp(port);
   } else {
     if (transport !== 'stdio') {
-      console.error(`[google-workspace-mcp] Unknown TRANSPORT="${transport}", defaulting to stdio`);
+      log('warn', `Unknown TRANSPORT="${transport}", defaulting to stdio`);
     }
     await runStdio();
   }
 }
 
 main().catch((error: unknown) => {
-  console.error('[google-workspace-mcp] Fatal error:', error);
+  log('error', 'Fatal error', { error: String(error) });
   process.exit(1);
 });

@@ -1,4 +1,5 @@
 import { OAuth2Client } from 'google-auth-library';
+import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import type { Response } from 'express';
 import type { OAuthServerProvider, AuthorizationParams } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
@@ -200,12 +201,19 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     const client = new OAuth2Client();
-    const tokenInfo = await client.getTokenInfo(token);
-    if (!tokenInfo.expiry_date) throw new Error('Token has no expiry');
+    let tokenInfo;
+    try {
+      tokenInfo = await client.getTokenInfo(token);
+    } catch (err) {
+      process.stderr.write(JSON.stringify({ level: 'warn', msg: 'verifyAccessToken failed', error: String(err) }) + '\n');
+      throw new InvalidTokenError('Invalid or expired access token');
+    }
+    if (!tokenInfo.expiry_date) throw new InvalidTokenError('Token has no expiry');
 
     // Verify the token was issued for this application, not a different OAuth client
     if (tokenInfo.aud !== this._googleClientId) {
-      throw new Error('Token audience does not match this application');
+      process.stderr.write(JSON.stringify({ level: 'warn', msg: 'verifyAccessToken: audience mismatch', aud: tokenInfo.aud, expected: this._googleClientId }) + '\n');
+      throw new InvalidTokenError('Token audience does not match this application');
     }
 
     return {
