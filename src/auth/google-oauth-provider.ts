@@ -9,25 +9,36 @@ import { OAuthTokensSchema } from '@modelcontextprotocol/sdk/shared/auth.js';
 /**
  * OAuth 2.1 server provider that proxies to Google's OAuth endpoints.
  *
+ * Google only allows http://localhost or https:// redirect URIs, but MCP clients
+ * use custom schemes (e.g. cursor://). This provider works around the limitation
+ * by using its own /oauth/callback as the redirect_uri with Google, then forwarding
+ * the authorization code to the original client redirect URI.
+ *
  * The full flow:
  *   1. Client discovers /.well-known/oauth-authorization-server
  *   2. Client POSTs to /register → gets back client_id/secret (our Google creds)
- *   3. Client redirects user to /authorize → we proxy to accounts.google.com
- *   4. User signs in with Google, Google redirects back to client's redirect_uri
- *   5. Client POSTs code to /token → we proxy to oauth2.googleapis.com/token
- *   6. Client receives Google access token, sends it as Bearer on /mcp requests
- *   7. requireBearerAuth validates via Google tokeninfo API
+ *   3. Client redirects user to /authorize with redirect_uri=cursor://...
+ *   4. We redirect to Google with redirect_uri=http://localhost:PORT/oauth/callback
+ *   5. User signs in, Google redirects to our /oauth/callback with ?code=...&state=...
+ *   6. We look up the original client redirect_uri and forward the code+state there
+ *   7. Client POSTs code to /token → we exchange with Google using our callback URI
+ *   8. Client receives Google access token, sends it as Bearer on /mcp requests
  */
 export class GoogleOAuthProvider implements OAuthServerProvider {
   private readonly _googleClientId: string;
   private readonly _googleClientSecret: string;
   private readonly _clients = new Map<string, OAuthClientInformationFull>();
+  private readonly _callbackUrl: string;
+
+  // Maps state → original client redirect_uri (for the callback proxy)
+  private readonly _pendingRedirects = new Map<string, string>();
 
   skipLocalPkceValidation = true;
 
-  constructor(googleClientId: string, googleClientSecret: string) {
+  constructor(googleClientId: string, googleClientSecret: string, callbackUrl: string) {
     this._googleClientId = googleClientId;
     this._googleClientSecret = googleClientSecret;
+    this._callbackUrl = callbackUrl;
   }
 
   get clientsStore(): OAuthRegisteredClientsStore {
@@ -46,21 +57,43 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
     };
   }
 
-  async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
+  async authorize(_client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
+    // Store the original redirect_uri so we can forward the code later
+    const state = params.state ?? crypto.randomUUID();
+    this._pendingRedirects.set(state, params.redirectUri);
+
     const targetUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     const searchParams = new URLSearchParams({
-      client_id: client.client_id,
+      client_id: this._googleClientId,
       response_type: 'code',
-      redirect_uri: params.redirectUri,
+      redirect_uri: this._callbackUrl,  // Our server's callback, not the client's
       code_challenge: params.codeChallenge,
       code_challenge_method: 'S256',
+      state,
       access_type: 'offline',
       prompt: 'consent',
     });
-    if (params.state) searchParams.set('state', params.state);
     if (params.scopes?.length) searchParams.set('scope', params.scopes.join(' '));
     targetUrl.search = searchParams.toString();
     res.redirect(targetUrl.toString());
+  }
+
+  /**
+   * Handles Google's redirect to /oauth/callback.
+   * Looks up the original client redirect_uri and forwards the code+state.
+   */
+  handleCallback(code: string, state: string, res: Response): void {
+    const originalRedirectUri = this._pendingRedirects.get(state);
+    if (!originalRedirectUri) {
+      res.status(400).send('Unknown state parameter — authorization flow may have expired.');
+      return;
+    }
+    this._pendingRedirects.delete(state);
+
+    const redirectUrl = new URL(originalRedirectUri);
+    redirectUrl.searchParams.set('code', code);
+    redirectUrl.searchParams.set('state', state);
+    res.redirect(redirectUrl.toString());
   }
 
   async challengeForAuthorizationCode(): Promise<string> {
@@ -72,16 +105,16 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
     client: OAuthClientInformationFull,
     authorizationCode: string,
     codeVerifier?: string,
-    redirectUri?: string,
+    _redirectUri?: string,
   ): Promise<OAuthTokens> {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: client.client_id,
       code: authorizationCode,
+      redirect_uri: this._callbackUrl,  // Must match what we sent to Google
     });
     if (client.client_secret) params.append('client_secret', client.client_secret);
     if (codeVerifier) params.append('code_verifier', codeVerifier);
-    if (redirectUri) params.append('redirect_uri', redirectUri);
 
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -141,10 +174,6 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
     });
     if (!response.ok) throw new Error(`Token revocation failed: ${response.status}`);
   }
-}
-
-export function createGoogleOAuthProvider(clientId: string, clientSecret: string): GoogleOAuthProvider {
-  return new GoogleOAuthProvider(clientId, clientSecret);
 }
 
 /**

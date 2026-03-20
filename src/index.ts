@@ -83,7 +83,8 @@ async function runHttp(port: number): Promise<void> {
   }
 
   const issuerUrl = new URL(`http://localhost:${port}`);
-  const oauthProvider = new GoogleOAuthProvider(clientId, clientSecret);
+  const callbackUrl = new URL('/oauth/callback', issuerUrl).href;
+  const oauthProvider = new GoogleOAuthProvider(clientId, clientSecret, callbackUrl);
 
   const app = express();
   app.use(express.json());
@@ -125,6 +126,21 @@ async function runHttp(port: number): Promise<void> {
   app.use('/token', tokenHandler({ provider: oauthProvider }));
   app.use('/register', clientRegistrationHandler({ clientsStore: oauthProvider.clientsStore }));
   app.use('/revoke', revocationHandler({ provider: oauthProvider }));
+
+  // Google redirects here after sign-in. We forward the code to the MCP client's
+  // original redirect_uri (e.g. cursor://) which Google doesn't support directly.
+  app.get('/oauth/callback', (req, res) => {
+    const { code, state, error } = req.query;
+    if (error) {
+      res.status(400).send(`Google authorization error: ${error}`);
+      return;
+    }
+    if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
+      res.status(400).send('Missing code or state parameter');
+      return;
+    }
+    oauthProvider.handleCallback(code, state, res);
+  });
 
   // --- Health & MCP ---
 
