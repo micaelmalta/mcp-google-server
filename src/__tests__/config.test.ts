@@ -17,15 +17,15 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('loadConfig', () => {
-  it('returns {} when config file does not exist', () => {
+  it('returns { readOnly: true } when config file does not exist', () => {
     mockExistsSync.mockReturnValue(false);
-    expect(loadConfig('/some/path/config.yml')).toEqual({});
+    expect(loadConfig('/some/path/config.yml')).toEqual({ readOnly: true });
   });
 
-  it('returns {} when file contents are not an object', () => {
+  it('returns { readOnly: true } when file contents are not an object', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('null');
-    expect(loadConfig('/path/config.yml')).toEqual({});
+    expect(loadConfig('/path/config.yml')).toEqual({ readOnly: true });
   });
 
   it('parses readOnly: true', () => {

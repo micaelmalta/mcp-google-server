@@ -104,14 +104,14 @@ export const READ_ONLY_SCOPES = [
 ];
 
 /**
- * Loads config from a YAML file. Returns {} if the file doesn't exist.
+ * Loads config from a YAML file. Returns { readOnly: true } if the file doesn't exist.
  */
 export function loadConfig(configPath?: string): ServerConfig {
   const filePath = configPath ?? process.env.CONFIG_PATH ?? 'config.yml';
-  if (!fs.existsSync(filePath)) return {};
+  if (!fs.existsSync(filePath)) return { readOnly: true };
   const raw = fs.readFileSync(filePath, 'utf-8');
   const parsed = yaml.load(raw);
-  if (!parsed || typeof parsed !== 'object') return {};
+  if (!parsed || typeof parsed !== 'object') return { readOnly: true };
   return parsed as ServerConfig;
 }
 
