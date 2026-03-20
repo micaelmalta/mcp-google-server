@@ -11,14 +11,20 @@
  *
  * HTTP mode:
  *   TRANSPORT=http PORT=3000 GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... node dist/index.js
- *   Each request must include an X-Google-Tokens header with the OAuth token JSON.
- *   The server is stateless — no tokens are stored on disk.
+ *   The server implements OAuth 2.1 — MCP clients (Cursor, Claude Desktop) trigger
+ *   a browser-based Google sign-in automatically on first use.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
+import express from 'express';
+import cors from 'cors';
+import { authorizationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
+import { tokenHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/token.js';
+import { clientRegistrationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/register.js';
+import { revocationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/revoke.js';
+import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 
 import { registerAuthTools } from './tools/auth/index.js';
 import { registerCalendarTools } from './tools/calendar/index.js';
@@ -28,8 +34,9 @@ import { registerDocsTools } from './tools/docs/index.js';
 import { registerSheetsTools } from './tools/sheets/index.js';
 import { registerSlidesTools } from './tools/slides/index.js';
 import { registerDirectoryTools } from './tools/directory/index.js';
-import { buildClientFromTokens } from './auth/oauth.js';
+import { GoogleOAuthProvider, clientFromBearerToken } from './auth/google-oauth-provider.js';
 import { authContext } from './auth/context.js';
+import { SCOPES } from './constants.js';
 
 function createServer(opts: { includeAuthTools: boolean } = { includeAuthTools: true }): McpServer {
   const server = new McpServer({
@@ -67,95 +74,97 @@ async function runStdio(): Promise<void> {
 }
 
 async function runHttp(port: number): Promise<void> {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    console.error(
-      '[google-workspace-mcp] WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set.'
-    );
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    console.error('[google-workspace-mcp] ERROR: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required in HTTP mode.');
+    process.exit(1);
   }
 
-  const app = createMcpExpressApp({ host: '0.0.0.0' });
+  const issuerUrl = new URL(`http://localhost:${port}`);
+  const oauthProvider = new GoogleOAuthProvider(clientId, clientSecret);
+
+  const app = express();
+  app.use(express.json());
+
+  // --- OAuth 2.1 endpoints (manually mounted instead of mcpAuthRouter to avoid
+  //     SDK getter evaluation timing issues with registration_endpoint) ---
+
+  // OAuth metadata (RFC 8414)
+  const oauthMetadata = {
+    issuer: issuerUrl.href,
+    authorization_endpoint: new URL('/authorize', issuerUrl).href,
+    token_endpoint: new URL('/token', issuerUrl).href,
+    registration_endpoint: new URL('/register', issuerUrl).href,
+    revocation_endpoint: new URL('/revoke', issuerUrl).href,
+    response_types_supported: ['code'],
+    code_challenge_methods_supported: ['S256'],
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
+    scopes_supported: SCOPES,
+    revocation_endpoint_auth_methods_supported: ['client_secret_post'],
+  };
+
+  // Protected resource metadata (RFC 9728)
+  const protectedResourceMetadata = {
+    resource: issuerUrl.href,
+    authorization_servers: [issuerUrl.href],
+    scopes_supported: SCOPES,
+    resource_name: 'Google Workspace MCP Server',
+  };
+
+  app.get('/.well-known/oauth-authorization-server', cors(), (_req, res) => {
+    res.json(oauthMetadata);
+  });
+  app.get('/.well-known/oauth-protected-resource', cors(), (_req, res) => {
+    res.json(protectedResourceMetadata);
+  });
+
+  app.use('/authorize', authorizationHandler({ provider: oauthProvider }));
+  app.use('/token', tokenHandler({ provider: oauthProvider }));
+  app.use('/register', clientRegistrationHandler({ clientsStore: oauthProvider.clientsStore }));
+  app.use('/revoke', revocationHandler({ provider: oauthProvider }));
+
+  // --- Health & MCP ---
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
 
-  app.post('/mcp', async (req, res) => {
-    const tokenHeader = req.headers['x-google-tokens'];
-    if (!tokenHeader || typeof tokenHeader !== 'string') {
-      res.status(401).json({
-        jsonrpc: '2.0',
-        error: { code: -32001, message: 'Missing X-Google-Tokens header' },
-        id: null,
-      });
-      return;
-    }
+  app.post('/mcp',
+    requireBearerAuth({ verifier: oauthProvider }),
+    async (req, res) => {
+      const oauthClient = clientFromBearerToken(req.auth!.token, clientId, clientSecret);
 
-    if (tokenHeader.length > 8192) {
-      res.status(413).json({
-        jsonrpc: '2.0',
-        error: { code: -32001, message: 'X-Google-Tokens header exceeds 8192 byte limit' },
-        id: null,
-      });
-      return;
-    }
+      // A new server+transport is required per request: the SDK throws if connect() is
+      // called on an already-connected Protocol instance, so reuse is not possible in
+      // stateless mode (sessionIdGenerator: undefined). See protocol.js:216.
+      const server = createServer({ includeAuthTools: false });
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
 
-    let client;
-    try {
-      client = buildClientFromTokens(tokenHeader);
-    } catch (err) {
-      const isConfigError = err instanceof Error && err.message.includes('environment variables are required');
-      if (isConfigError) {
-        console.error('[google-workspace-mcp] Server misconfiguration:', err);
-        res.status(500).json({
-          jsonrpc: '2.0',
-          error: { code: -32603, message: 'Server misconfiguration: missing Google credentials' },
-          id: null,
-        });
-      } else {
-        res.status(401).json({
-          jsonrpc: '2.0',
-          error: { code: -32001, message: 'Invalid X-Google-Tokens header: must be valid token JSON' },
-          id: null,
-        });
+      try {
+        await server.connect(transport);
+        await authContext.run(oauthClient, () => transport.handleRequest(req, res, req.body));
+      } catch (error) {
+        console.error('[google-workspace-mcp] Error handling request:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Internal server error' },
+            id: null,
+          });
+        }
+      } finally {
+        try { await transport.close(); } catch { /* ignore */ }
+        try { await server.close(); } catch { /* ignore */ }
       }
-      return;
     }
-
-    // A new server+transport is required per request: the SDK throws if connect() is
-    // called on an already-connected Protocol instance, so reuse is not possible in
-    // stateless mode (sessionIdGenerator: undefined). See protocol.js:216.
-    const server = createServer({ includeAuthTools: false });
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-
-    // Set the header eagerly via the tokens event — by the time handleRequest()
-    // resolves, the response is already flushed so res.setHeader() would be too late.
-    client.on('tokens', (newTokens) => {
-      const merged = { ...JSON.parse(tokenHeader), ...newTokens };
-      if (!res.headersSent) {
-        res.setHeader('X-Google-Tokens-Refreshed', JSON.stringify(merged));
-      }
-    });
-
-    try {
-      await server.connect(transport);
-      await authContext.run(client, () => transport.handleRequest(req, res, req.body));
-    } catch (error) {
-      console.error('[google-workspace-mcp] Error handling request:', error);
-      if (!res.headersSent) {
-        res.status(500).json({
-          jsonrpc: '2.0',
-          error: { code: -32603, message: 'Internal server error' },
-          id: null,
-        });
-      }
-    } finally {
-      try { await transport.close(); } catch { /* ignore */ }
-      try { await server.close(); } catch { /* ignore */ }
-    }
-  });
+  );
 
   const httpServer = app.listen(port, () => {
     console.error(`[google-workspace-mcp] Server running via HTTP on port ${port}`);
+    console.error(`[google-workspace-mcp] OAuth metadata: http://localhost:${port}/.well-known/oauth-authorization-server`);
   });
 
   process.on('SIGTERM', () => {
