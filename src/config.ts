@@ -113,11 +113,22 @@ export function loadConfig(configPath?: string): ServerConfig {
   const parsed = yaml.load(raw);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { readOnly: true };
   const obj = parsed as Record<string, unknown>;
+  const enabledTools = Array.isArray(obj.enabledTools)
+    ? obj.enabledTools.filter((t): t is string => typeof t === 'string')
+    : undefined;
+
+  if (enabledTools) {
+    const validEntries = new Set([...Object.keys(GROUP_PREFIXES), ...Object.keys(TOOL_READ_ONLY)]);
+    for (const entry of enabledTools) {
+      if (!validEntries.has(entry)) {
+        process.stderr.write(JSON.stringify({ level: 'warn', msg: `enabledTools entry "${entry}" does not match any known group or tool name` }) + '\n');
+      }
+    }
+  }
+
   return {
     ...(typeof obj.readOnly === 'boolean' ? { readOnly: obj.readOnly } : {}),
-    ...(Array.isArray(obj.enabledTools)
-      ? { enabledTools: obj.enabledTools.filter((t): t is string => typeof t === 'string') }
-      : {}),
+    ...(enabledTools ? { enabledTools } : {}),
   };
 }
 

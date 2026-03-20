@@ -56,6 +56,18 @@ describe('loadConfig', () => {
     expect(loadConfig('/path/config.yml')).toEqual({ enabledTools: ['calendar', 'gmail'] });
   });
 
+  it('warns on unrecognized enabledTools entries', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue('enabledTools:\n  - calender\n  - google_drive_lst_files\n');
+    const written: string[] = [];
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation((s) => { written.push(s as string); return true; });
+    loadConfig('/path/config.yml');
+    spy.mockRestore();
+    expect(written).toHaveLength(2);
+    expect(written[0]).toContain('calender');
+    expect(written[1]).toContain('google_drive_lst_files');
+  });
+
   it('parses both readOnly and enabledTools', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('readOnly: true\nenabledTools:\n  - gmail\n');
