@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import { OAuth2Client, Credentials } from 'google-auth-library';
 import fs from 'fs';
 import { TOKENS_PATH, SCOPES } from '../constants.js';
+import { authContext } from './context.js';
 
 let _client: OAuth2Client | null = null;
 
@@ -47,6 +48,26 @@ export function getOAuthClient(): OAuth2Client {
   });
 
   return _client;
+}
+
+/**
+ * Builds a one-off OAuth2Client from a token JSON string (for HTTP mode).
+ * The token JSON should contain at minimum a refresh_token.
+ * Access tokens are refreshed automatically by the google-auth-library.
+ */
+export function buildClientFromTokens(tokenJson: string): OAuth2Client {
+  const { clientId, clientSecret, redirectUri } = getCredentials();
+  const client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  const parsed: unknown = JSON.parse(tokenJson);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('Token JSON must be an object');
+  }
+  const tokens = parsed as Credentials;
+  if (!tokens.access_token && !tokens.refresh_token) {
+    throw new Error('Token JSON must contain at least an access_token or refresh_token');
+  }
+  client.setCredentials(tokens);
+  return client;
 }
 
 /**
@@ -104,9 +125,30 @@ export function isAuthenticated(): boolean {
 }
 
 /**
- * Returns the OAuth client or throws if not authenticated.
+ * Returns the active OAuth2Client or throws if not authenticated.
+ *
+ * In HTTP mode, returns the per-request client from AsyncLocalStorage.
+ * In stdio mode, returns the persistent singleton loaded from disk.
+ *
+ * In HTTP mode (TRANSPORT=http), the context client MUST be present —
+ * falling back to the stdio singleton would be a security issue (leaking
+ * one user's credentials to another). If the context is missing, it means
+ * an async operation escaped the AsyncLocalStorage context (e.g. via
+ * setTimeout or a library that doesn't propagate async context).
  */
 export function requireAuth(): OAuth2Client {
+  const isHttpMode = process.env.TRANSPORT === 'http';
+  const contextClient = authContext.getStore();
+
+  if (contextClient) return contextClient;
+
+  if (isHttpMode) {
+    throw new Error(
+      'No per-request auth context available. This is a bug — the request may have ' +
+      'escaped the AsyncLocalStorage context (e.g. via setTimeout or untracked callback).'
+    );
+  }
+
   const client = getOAuthClient();
   const creds = client.credentials;
   if (!creds.access_token && !creds.refresh_token) {
