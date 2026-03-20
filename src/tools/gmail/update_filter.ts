@@ -63,9 +63,15 @@ Returns:
         };
       }
 
+      const gmail = getGmail();
+
       try {
-        const gmail = getGmail();
         await gmail.users.settings.filters.delete({ userId: 'me', id: filter_id });
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
+      }
+
+      try {
         const res = await gmail.users.settings.filters.create({
           userId: 'me',
           requestBody: { criteria, action },
@@ -76,7 +82,10 @@ Returns:
           structuredContent: { filter },
         };
       } catch (error) {
-        return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
+        return {
+          isError: true,
+          content: [{ type: 'text', text: `Original filter \`${filter_id}\` was deleted but creating the replacement failed: ${handleGoogleError(error)}` }],
+        };
       }
     }
   );
