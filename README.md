@@ -214,9 +214,11 @@ Open the URL it returns, sign in with Google, and grant permissions. Tokens are 
 
 ## HTTP Mode
 
-In addition to stdio (the default), the server can run as an HTTP server. This is how it runs in Kubernetes — each request is stateless and must supply a Google OAuth token JSON in the `X-Google-Tokens` header.
+HTTP mode is designed for **server deployments** (e.g. Kubernetes) where the server is shared across users and must be stateless. Each request supplies its own Google OAuth token JSON via the `X-Google-Tokens` header — no tokens are stored on disk.
 
-### Running locally in HTTP mode
+> **For local development with Claude Desktop or Cursor, use stdio mode (the default).** It handles auth automatically via `google_auth_start` and stores tokens locally. HTTP mode is only needed when deploying the server to a shared environment.
+
+### Starting the server
 
 ```bash
 TRANSPORT=http \
@@ -230,44 +232,13 @@ The server exposes:
 - `GET /health` — liveness/readiness probe, returns `{"status":"ok"}`
 - `POST /mcp` — MCP endpoint, requires `X-Google-Tokens` header
 
-### Configuring Claude to use HTTP mode
+### Obtaining tokens
 
-#### Claude CLI
+Tokens must be obtained out-of-band (e.g. via a separate OAuth flow in your application) and passed per-request. The token JSON must contain at least an `access_token` or `refresh_token`.
 
-```bash
-claude mcp add google-workspace \
-  --transport http \
-  --header "X-Google-Tokens: $(cat ~/.google-mcp-tokens.json)" \
-  http://localhost:3000/mcp
-```
-
-#### Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "google-workspace": {
-      "type": "http",
-      "url": "http://localhost:3000/mcp",
-      "headers": {
-        "X-Google-Tokens": "<paste contents of ~/.google-mcp-tokens.json>"
-      }
-    }
-  }
-}
-```
-
-### Getting a token to use with HTTP mode
-
-You need a valid Google OAuth token JSON. The easiest way is to run the server in stdio mode once to authorize, then copy the saved tokens:
+If you need a quick token for testing, you can reuse the tokens saved by stdio mode:
 
 ```bash
-# 1. Run in stdio mode and call google_auth_start to authorize
-GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... node dist/index.js
-
-# 2. After authorizing, the tokens are saved to ~/.google-mcp-tokens.json
 cat ~/.google-mcp-tokens.json
 ```
 
@@ -284,11 +255,11 @@ curl -X POST http://localhost:3000/mcp \
 
 ### Token refresh
 
-If the access token expires mid-request, `google-auth-library` refreshes it automatically. The updated token JSON is returned in the `X-Google-Tokens-Refreshed` response header — store it and use it for subsequent requests to avoid unnecessary token refreshes.
+If the access token expires mid-request, `google-auth-library` refreshes it transparently. The updated token JSON is returned in an `X-Google-Tokens-Refreshed` response header — callers should store it and use it for subsequent requests to avoid redundant refreshes.
 
-### Auth tools in HTTP mode
+### Auth tools
 
-`google_auth_start`, `google_auth_status`, and `google_auth_revoke` are not registered in HTTP mode — they rely on local disk/port 8080 and are not meaningful in a stateless server environment.
+`google_auth_start`, `google_auth_status`, and `google_auth_revoke` are not available in HTTP mode — they are only meaningful in stdio mode where tokens are managed locally.
 
 ---
 
