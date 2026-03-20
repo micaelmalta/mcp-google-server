@@ -105,7 +105,6 @@ export class GoogleOAuthProvider implements OAuthServerProvider {
     client: OAuthClientInformationFull,
     authorizationCode: string,
     codeVerifier?: string,
-    _redirectUri?: string,
   ): Promise<OAuthTokens> {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
