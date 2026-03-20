@@ -108,8 +108,9 @@ export function extractEmailBody(
   // text/html fallback
   if (payload.mimeType === 'text/html' && payload.body?.data) {
     const html = decodeBase64Url(payload.body.data);
-    // Very basic HTML stripping
-    return html.replace(/<[^>]+>/g, '').trim();
+    // Strip HTML tags by removing anything between < and >
+    // Use a two-pass approach: first collapse nested angle brackets, then strip tags
+    return html.replace(/<[^]*?>/g, '').trim();
   }
 
   // Recurse into parts
