@@ -111,8 +111,14 @@ export function loadConfig(configPath?: string): ServerConfig {
   if (!fs.existsSync(filePath)) return { readOnly: true };
   const raw = fs.readFileSync(filePath, 'utf-8');
   const parsed = yaml.load(raw);
-  if (!parsed || typeof parsed !== 'object') return { readOnly: true };
-  return parsed as ServerConfig;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { readOnly: true };
+  const obj = parsed as Record<string, unknown>;
+  return {
+    ...(typeof obj.readOnly === 'boolean' ? { readOnly: obj.readOnly } : {}),
+    ...(Array.isArray(obj.enabledTools)
+      ? { enabledTools: obj.enabledTools.filter((t): t is string => typeof t === 'string') }
+      : {}),
+  };
 }
 
 /**

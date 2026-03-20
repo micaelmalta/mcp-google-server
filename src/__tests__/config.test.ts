@@ -44,6 +44,18 @@ describe('loadConfig', () => {
     });
   });
 
+  it('handles enabledTools as bare string gracefully (omits the field)', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue('enabledTools: calendar\n');
+    expect(loadConfig('/path/config.yml')).toEqual({});
+  });
+
+  it('filters non-string entries out of enabledTools', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue('enabledTools:\n  - calendar\n  - 123\n  - gmail\n');
+    expect(loadConfig('/path/config.yml')).toEqual({ enabledTools: ['calendar', 'gmail'] });
+  });
+
   it('parses both readOnly and enabledTools', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('readOnly: true\nenabledTools:\n  - gmail\n');
