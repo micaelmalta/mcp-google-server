@@ -10,7 +10,7 @@ export function registerUpdateFilter(server: McpServer): void {
       title: 'Update Gmail Filter',
       description: `Replaces an existing Gmail filter by deleting it and creating a new one with updated settings.
 
-⚠️ Not atomic: if create fails after delete, the original filter is lost. If delete fails, create is not attempted.
+Not atomic: if create fails after delete, the original filter settings are included in the error message for manual recovery. If delete fails, create is not attempted.
 
 Args:
   - filter_id: ID of the filter to replace (from google_gmail_list_filters)
@@ -32,12 +32,12 @@ Returns:
   - filter.id: ID of the newly created filter (different from original)`,
       inputSchema: z.object({
         filter_id:         z.string().min(1).describe('Filter ID to replace.'),
-        from:              z.string().optional(),
-        to:                z.string().optional(),
-        subject:           z.string().optional(),
-        query:             z.string().optional(),
-        add_labels:        z.string().optional(),
-        remove_labels:     z.string().optional(),
+        from:              z.string().min(1).optional(),
+        to:                z.string().min(1).optional(),
+        subject:           z.string().min(1).optional(),
+        query:             z.string().min(1).optional(),
+        add_labels:        z.string().min(1).optional(),
+        remove_labels:     z.string().min(1).optional(),
         skip_inbox:        z.boolean().optional(),
         mark_as_read:      z.boolean().optional(),
         mark_as_important: z.boolean().optional(),
@@ -65,6 +65,14 @@ Returns:
 
       const gmail = getGmail();
 
+      let originalFilter;
+      try {
+        const orig = await gmail.users.settings.filters.get({ userId: 'me', id: filter_id });
+        originalFilter = formatFilter(orig.data);
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text', text: handleGoogleError(error) }] };
+      }
+
       try {
         await gmail.users.settings.filters.delete({ userId: 'me', id: filter_id });
       } catch (error) {
@@ -84,7 +92,7 @@ Returns:
       } catch (error) {
         return {
           isError: true,
-          content: [{ type: 'text', text: `Original filter \`${filter_id}\` was deleted but creating the replacement failed: ${handleGoogleError(error)}` }],
+          content: [{ type: 'text', text: `Original filter \`${filter_id}\` was deleted but creating the replacement failed: ${handleGoogleError(error)}\n\nOriginal filter settings: ${JSON.stringify(originalFilter, null, 2)}` }],
         };
       }
     }

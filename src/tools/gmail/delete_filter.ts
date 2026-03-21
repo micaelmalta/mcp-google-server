@@ -18,7 +18,7 @@ Returns:
       inputSchema: z.object({
         filter_id: z.string().min(1).describe('Filter ID to delete.'),
       }).strict(),
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ filter_id }) => {
       try {

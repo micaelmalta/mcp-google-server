@@ -28,12 +28,12 @@ Returns:
   - filter.criteria: Stored match conditions
   - filter.action: Stored label actions`,
       inputSchema: z.object({
-        from:              z.string().optional().describe('Sender address to match.'),
-        to:                z.string().optional().describe('Recipient address to match.'),
-        subject:           z.string().optional().describe('Subject line to match.'),
-        query:             z.string().optional().describe('Arbitrary Gmail search query.'),
-        add_labels:        z.string().optional().describe('Comma-separated label IDs to add.'),
-        remove_labels:     z.string().optional().describe('Comma-separated label IDs to remove.'),
+        from:              z.string().min(1).optional().describe('Sender address to match.'),
+        to:                z.string().min(1).optional().describe('Recipient address to match.'),
+        subject:           z.string().min(1).optional().describe('Subject line to match.'),
+        query:             z.string().min(1).optional().describe('Arbitrary Gmail search query.'),
+        add_labels:        z.string().min(1).optional().describe('Comma-separated label IDs to add.'),
+        remove_labels:     z.string().min(1).optional().describe('Comma-separated label IDs to remove.'),
         skip_inbox:        z.boolean().optional().describe('Archive matching mail.'),
         mark_as_read:      z.boolean().optional().describe('Mark matching mail as read.'),
         mark_as_important: z.boolean().optional().describe('Mark matching mail as important.'),
