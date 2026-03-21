@@ -17,6 +17,10 @@ const _mocks = vi.hoisted(() => ({
   mockExecSync: vi.fn(),
   mockExecFileSync: vi.fn(),
   mockUsersGetProfile: vi.fn(),
+  mockSettingsFiltersList: vi.fn(),
+  mockSettingsFiltersGet: vi.fn(),
+  mockSettingsFiltersCreate: vi.fn(),
+  mockSettingsFiltersDelete: vi.fn(),
 }));
 
 export const mockLabelsList = _mocks.mockLabelsList;
@@ -35,6 +39,10 @@ export const mockDraftsSend = _mocks.mockDraftsSend;
 export const mockExecSync = _mocks.mockExecSync;
 export const mockExecFileSync = _mocks.mockExecFileSync;
 export const mockUsersGetProfile = _mocks.mockUsersGetProfile;
+export const mockSettingsFiltersList = _mocks.mockSettingsFiltersList;
+export const mockSettingsFiltersGet = _mocks.mockSettingsFiltersGet;
+export const mockSettingsFiltersCreate = _mocks.mockSettingsFiltersCreate;
+export const mockSettingsFiltersDelete = _mocks.mockSettingsFiltersDelete;
 
 vi.mock('../../../auth/oauth.js', () => ({ requireAuth: () => ({}) }));
 
@@ -61,6 +69,14 @@ vi.mock('googleapis', () => ({
           update: _mocks.mockDraftsUpdate,
           delete: _mocks.mockDraftsDelete,
           send: _mocks.mockDraftsSend,
+        },
+        settings: {
+          filters: {
+            list:   _mocks.mockSettingsFiltersList,
+            get:    _mocks.mockSettingsFiltersGet,
+            create: _mocks.mockSettingsFiltersCreate,
+            delete: _mocks.mockSettingsFiltersDelete,
+          },
         },
       },
     }),
