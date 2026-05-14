@@ -9,7 +9,7 @@ on:
 jobs:
   build-ecr-image:
     name: Build ECR Image
-    uses: justworkshr/actions/.github/workflows/ecr-build-oidc.yml@v2.0
+    uses: justworkshr/actions/.github/workflows/ecr-build-oidc.yml@v2
     permissions:
       id-token: write
       contents: read
