@@ -9,7 +9,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: jw-ubuntu-latest-2core
     permissions:
       contents: read
     steps:
@@ -29,7 +29,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: jw-ubuntu-latest-2core
     permissions:
       contents: read
       pull-requests: write
@@ -54,7 +54,7 @@ jobs:
 
   docker-build:
     name: Docker Build
-    runs-on: ubuntu-latest
+    runs-on: jw-ubuntu-latest-2core
     permissions:
       contents: read
     steps:
