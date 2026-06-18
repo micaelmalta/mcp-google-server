@@ -9,7 +9,7 @@ on:
 jobs:
   build-ecr-image:
     name: Build ECR Image
-    uses: justworkshr/actions/.github/workflows/ecr-build-oidc.yml@v2.0
+    uses: justworkshr/actions/.github/workflows/ecr-build-oidc.yml@v2
     permissions:
       id-token: write
       contents: read
@@ -17,7 +17,6 @@ jobs:
     with:
       AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN_NONPROD }}
       SERVICE_NAME: mcp-google-server
-      AWS_ACCOUNT_ID: "974932714082"
       PUSH_IMAGE_TAG_ONLY: true
     secrets:
       PRIVATE_REPO: ${{ secrets.PRIVATE_REPO }}
