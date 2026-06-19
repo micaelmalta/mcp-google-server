@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { getDocs, extractTabText, formatDocTabs, type TabData } from './shared.js';
+import { getDocs, extractTabText, type TabData } from './shared.js';
 import { getDrive } from '../drive/shared.js';
 import { ResponseFormat } from '../../types.js';
 import { handleGoogleError } from '../../utils/errors.js';
@@ -96,8 +96,6 @@ For 'json' format, returns a structured tabs array with tab_id, title, index, an
             content: [{ type: 'text', text: `Tab "${tab}" not found. Available tabs: ${available}` }],
           };
         }
-
-        const formattedContent = formatDocTabs(effectiveTabs);
 
         // Only ResponseFormat.JSON reaches here (MARKDOWN returned early above)
         const text = JSON.stringify(
