@@ -4,11 +4,17 @@ const _mocks = vi.hoisted(() => ({
   mockDocumentsGet: vi.fn(),
   mockDocumentsCreate: vi.fn(),
   mockDocumentsBatchUpdate: vi.fn(),
+  mockFilesCreate: vi.fn(),
+  mockFilesUpdate: vi.fn(),
+  mockFilesExport: vi.fn(),
 }));
 
 export const mockDocumentsGet = _mocks.mockDocumentsGet;
 export const mockDocumentsCreate = _mocks.mockDocumentsCreate;
 export const mockDocumentsBatchUpdate = _mocks.mockDocumentsBatchUpdate;
+export const mockFilesCreate = _mocks.mockFilesCreate;
+export const mockFilesUpdate = _mocks.mockFilesUpdate;
+export const mockFilesExport = _mocks.mockFilesExport;
 
 vi.mock('../../../auth/oauth.js', () => ({ requireAuth: () => ({}) }));
 
@@ -19,6 +25,13 @@ vi.mock('googleapis', () => ({
         get: _mocks.mockDocumentsGet,
         create: _mocks.mockDocumentsCreate,
         batchUpdate: _mocks.mockDocumentsBatchUpdate,
+      },
+    }),
+    drive: () => ({
+      files: {
+        create: _mocks.mockFilesCreate,
+        update: _mocks.mockFilesUpdate,
+        export: _mocks.mockFilesExport,
       },
     }),
   },
