@@ -36,6 +36,13 @@ Returns:
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async ({ title, content, markdown }) => {
+      if (content !== undefined && markdown !== undefined) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: 'Provide only one of content or markdown, not both.' }],
+        };
+      }
+
       try {
         let docId: string;
 
