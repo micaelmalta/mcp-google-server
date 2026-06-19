@@ -20,7 +20,8 @@ Args:
 
 Returns the document title and content. Top-level tabs are fetched; nested child tabs are not included.
 When multiple tabs exist, each is labeled with its title. When 'tab' is specified and not found, returns an error.
-For 'json' format, returns a structured tabs array with tab_id, title, index, and text_content per tab.`,
+For 'json' format, returns a structured tabs array with tab_id, title, index, and text_content per tab.
+Note: very large documents are truncated at 25,000 characters in the returned text content.`,
       inputSchema: z.object({
         document_id: z.string().min(1).describe('Document ID.'),
         tab: z.string().optional().describe('Tab title or tab ID to focus on. Omit to return all tabs.'),

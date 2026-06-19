@@ -12,4 +12,4 @@ export function registerDocsTools(server: McpServer): void {
 }
 
 export type { TabData } from './shared.js';
-export { extractTabText, formatDocTabs } from './shared.js';
+export { extractTabText } from './shared.js';
