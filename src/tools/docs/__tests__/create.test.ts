@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import './_setup.js';
-import { loadDocsTools, registeredTools, mockDocumentsCreate, mockDocumentsBatchUpdate } from './_setup.js';
+import { loadDocsTools, registeredTools, mockDocumentsCreate, mockDocumentsBatchUpdate, mockFilesCreate } from './_setup.js';
 
 describe('google_docs_create tool', () => {
   beforeEach(async () => {
@@ -49,5 +49,35 @@ describe('google_docs_create tool', () => {
     const result = (await handler({ title: 'Bad' })) as { isError: boolean };
 
     expect(result.isError).toBe(true);
+  });
+
+  it('creates a doc from markdown via Drive media upload', async () => {
+    mockFilesCreate.mockResolvedValue({ data: { id: 'doc-md-1' } });
+    const handler = registeredTools.get('google_docs_create')!;
+
+    const result = await handler({ title: 'MD Doc', markdown: '# Hello\n\n**bold**' }) as {
+      structuredContent: { document_id: string; web_view_link: string };
+    };
+
+    expect(mockFilesCreate).toHaveBeenCalledWith({
+      requestBody: { name: 'MD Doc', mimeType: 'application/vnd.google-apps.document' },
+      media: { mimeType: 'text/markdown', body: '# Hello\n\n**bold**' },
+      fields: 'id',
+    });
+    expect(mockDocumentsCreate).not.toHaveBeenCalled();
+    expect(result.structuredContent.document_id).toBe('doc-md-1');
+    expect(result.structuredContent.web_view_link).toBe(
+      'https://docs.google.com/document/d/doc-md-1/edit'
+    );
+  });
+
+  it('rejects passing both content and markdown', async () => {
+    const handler = registeredTools.get('google_docs_create')!;
+    const result = await handler({ title: 'X', content: 'a', markdown: 'b' }) as {
+      isError?: boolean;
+      content: Array<{ text: string }>;
+    };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/only one of/i);
   });
 });
