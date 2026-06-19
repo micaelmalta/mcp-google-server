@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getDocs, extractTabText, formatDocTabs, type TabData } from './shared.js';
+import { getDrive } from '../drive/shared.js';
 import { ResponseFormat } from '../../types.js';
 import { handleGoogleError } from '../../utils/errors.js';
 import { truncateIfNeeded } from '../../utils/format.js';
@@ -29,6 +30,32 @@ For 'json' format, returns a structured tabs array with tab_id, title, index, an
     },
     async ({ document_id, tab, response_format }) => {
       try {
+        if (response_format === ResponseFormat.MARKDOWN) {
+          if (tab) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text:
+                    'Markdown export covers the whole document only. Remove the `tab` argument, ' +
+                    'or use response_format "json" to read a single tab.',
+                },
+              ],
+            };
+          }
+          const drive = getDrive();
+          const exportRes = await drive.files.export({
+            fileId: document_id,
+            mimeType: 'text/markdown',
+          });
+          const md = typeof exportRes.data === 'string' ? exportRes.data : String(exportRes.data ?? '');
+          return {
+            content: [{ type: 'text', text: truncateIfNeeded(md) }],
+            structuredContent: { document_id, markdown: md },
+          };
+        }
+
         const docs = getDocs();
         const res = await docs.documents.get({
           documentId: document_id,
@@ -72,25 +99,17 @@ For 'json' format, returns a structured tabs array with tab_id, title, index, an
 
         const formattedContent = formatDocTabs(effectiveTabs);
 
-        let text: string;
-        if (response_format === ResponseFormat.MARKDOWN) {
-          const titleSuffix = effectiveTabs.length === 1 && tab ? effectiveTabs[0].title : undefined;
-          const heading = titleSuffix
-            ? `# ${doc.title ?? 'Untitled'} > ${titleSuffix}`
-            : `# ${doc.title ?? 'Untitled'}`;
-          text = `${heading}\n\n${formattedContent}`;
-        } else {
-          text = JSON.stringify(
-            {
-              document_id: doc.documentId,
-              title: doc.title,
-              revision_id: doc.revisionId,
-              tabs: effectiveTabs,
-            },
-            null,
-            2
-          );
-        }
+        // Only ResponseFormat.JSON reaches here (MARKDOWN returned early above)
+        const text = JSON.stringify(
+          {
+            document_id: doc.documentId,
+            title: doc.title,
+            revision_id: doc.revisionId,
+            tabs: effectiveTabs,
+          },
+          null,
+          2
+        );
 
         return {
           content: [{ type: 'text', text: truncateIfNeeded(text) }],
