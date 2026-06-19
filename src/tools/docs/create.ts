@@ -1,8 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { google } from 'googleapis';
 import { getDocs } from './shared.js';
-import { requireAuth } from '../../auth/oauth.js';
+import { getDrive } from '../drive/shared.js';
 import { handleGoogleError } from '../../utils/errors.js';
 
 export function registerDocsCreate(server: McpServer): void {
@@ -37,20 +36,11 @@ Returns:
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async ({ title, content, markdown }) => {
-      // Runtime validation: check that only one of content or markdown is provided
-      if (content !== undefined && markdown !== undefined) {
-        return {
-          isError: true,
-          content: [{ type: 'text', text: 'Provide only one of content or markdown, not both.' }],
-        };
-      }
-
       try {
         let docId: string;
 
         if (markdown !== undefined) {
-          const auth = requireAuth();
-          const drive = google.drive({ version: 'v3', auth });
+          const drive = getDrive();
           const res = await drive.files.create({
             requestBody: { name: title, mimeType: 'application/vnd.google-apps.document' },
             media: { mimeType: 'text/markdown', body: markdown },
