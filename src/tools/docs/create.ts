@@ -11,14 +11,10 @@ export function registerDocsCreate(server: McpServer): void {
       title: 'Create a Google Doc',
       description: `Creates a new Google Docs document with optional initial content.
 
-Provide at most one of:
-  - content: Initial plain text (inserted literally, no formatting)
-  - markdown: Markdown converted to real Doc formatting (headings, bold, lists, tables, links)
-
 Args:
   - title: Document title (required)
-  - content: Initial plain text content
-  - markdown: Initial Markdown content (mutually exclusive with content)
+  - content: Initial content (plain text or Markdown). Omit for a blank document.
+  - format: Content format — "plain" (default) or "markdown" (converts Markdown to real Doc formatting: headings, bold, lists, tables, links)
 
 Returns:
   - document_id: ID to use in google_docs_get and google_docs_append_text
@@ -26,31 +22,21 @@ Returns:
       inputSchema: z
         .object({
           title: z.string().min(1).describe('Document title.'),
-          content: z.string().optional().describe('Initial plain text content.'),
-          markdown: z.string().optional().describe('Initial Markdown content (mutually exclusive with content).'),
+          content: z.string().optional().describe('Initial plain text or Markdown content.'),
+          format: z.enum(['plain', 'markdown']).optional().default('plain').describe('Content format: "plain" (default) or "markdown".'),
         })
-        .strict()
-        .refine((d) => !(d.content !== undefined && d.markdown !== undefined), {
-          message: 'Provide only one of content or markdown, not both.',
-        }),
+        .strict(),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async ({ title, content, markdown }) => {
-      if (content !== undefined && markdown !== undefined) {
-        return {
-          isError: true,
-          content: [{ type: 'text', text: 'Provide only one of content or markdown, not both.' }],
-        };
-      }
-
+    async ({ title, content, format }) => {
       try {
         let docId: string;
 
-        if (markdown !== undefined) {
+        if (content !== undefined && format === 'markdown') {
           const drive = getDrive();
           const res = await drive.files.create({
             requestBody: { name: title, mimeType: 'application/vnd.google-apps.document' },
-            media: { mimeType: 'text/markdown', body: markdown },
+            media: { mimeType: 'text/markdown', body: content },
             fields: 'id',
           });
           docId = res.data.id!;

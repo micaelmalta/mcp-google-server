@@ -12,40 +12,33 @@ export function registerDocsReplaceContent(server: McpServer): void {
       description: `Replaces the ENTIRE body of an existing Google Doc. This is destructive:
 the current content is fully overwritten. Google Docs version history can be used to recover prior content.
 
-Provide exactly one of:
-  - content: Plain text (inserted literally, no formatting)
-  - markdown: Markdown converted to real Doc formatting (headings, bold, lists, tables, links)
-
 Args:
   - document_id: Document ID (required)
-  - content: Replacement plain text
-  - markdown: Replacement Markdown (mutually exclusive with content)`,
+  - content: Replacement content — plain text or Markdown (required)
+  - format: Content format — "plain" (default) or "markdown" (converts Markdown to real Doc formatting: headings, bold, lists, tables, links)`,
       inputSchema: z
         .object({
           document_id: z.string().min(1).describe('Document ID.'),
-          content: z.string().optional().describe('Replacement plain text.'),
-          markdown: z.string().optional().describe('Replacement Markdown (mutually exclusive with content).'),
+          content: z.string().describe('Replacement content (plain text or Markdown).'),
+          format: z.enum(['plain', 'markdown']).optional().default('plain').describe('Content format: "plain" (default) or "markdown".'),
         })
-        .strict()
-        .refine((d) => (d.content !== undefined) !== (d.markdown !== undefined), {
-          message: 'Provide exactly one of content or markdown.',
-        }),
+        .strict(),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
-    async ({ document_id, content, markdown }) => {
-      if ((content !== undefined) === (markdown !== undefined)) {
+    async ({ document_id, content, format }) => {
+      if (content === undefined) {
         return {
           isError: true,
-          content: [{ type: 'text', text: 'Provide exactly one of content or markdown.' }],
+          content: [{ type: 'text', text: 'content is required.' }],
         };
       }
 
       try {
-        if (markdown !== undefined) {
+        if (format === 'markdown') {
           const drive = getDrive();
           await drive.files.update({
             fileId: document_id,
-            media: { mimeType: 'text/markdown', body: markdown },
+            media: { mimeType: 'text/markdown', body: content },
           });
         } else {
           const docs = getDocs();
@@ -57,7 +50,7 @@ Args:
           if (endIndex - 1 > 1) {
             requests.push({ deleteContentRange: { range: { startIndex: 1, endIndex: endIndex - 1 } } });
           }
-          requests.push({ insertText: { location: { index: 1 }, text: content! } });
+          requests.push({ insertText: { location: { index: 1 }, text: content } });
           await docs.documents.batchUpdate({ documentId: document_id, requestBody: { requests } });
         }
 

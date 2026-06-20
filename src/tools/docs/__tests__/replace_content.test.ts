@@ -13,11 +13,11 @@ describe('google_docs_replace_content', () => {
     await loadDocsTools();
   });
 
-  it('replaces the body with markdown via Drive media update', async () => {
+  it('replaces the body with markdown via Drive media update when format is markdown', async () => {
     mockFilesUpdate.mockResolvedValue({ data: { id: 'doc-1' } });
     const handler = registeredTools.get('google_docs_replace_content')!;
 
-    const result = await handler({ document_id: 'doc-1', markdown: '# New' }) as {
+    const result = await handler({ document_id: 'doc-1', content: '# New', format: 'markdown' }) as {
       structuredContent: { document_id: string; web_view_link: string };
     };
 
@@ -65,23 +65,12 @@ describe('google_docs_replace_content', () => {
     });
   });
 
-  it('errors when neither content nor markdown is provided', async () => {
+  it('errors when content is not provided', async () => {
     const handler = registeredTools.get('google_docs_replace_content')!;
     const result = await handler({ document_id: 'doc-4' }) as {
       isError?: boolean;
       content: Array<{ text: string }>;
     };
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/exactly one of/i);
-  });
-
-  it('errors when both content and markdown are provided', async () => {
-    const handler = registeredTools.get('google_docs_replace_content')!;
-    const result = await handler({ document_id: 'doc-5', content: 'a', markdown: 'b' }) as {
-      isError?: boolean;
-      content: Array<{ text: string }>;
-    };
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/exactly one of/i);
   });
 });

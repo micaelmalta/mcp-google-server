@@ -51,11 +51,11 @@ describe('google_docs_create tool', () => {
     expect(result.isError).toBe(true);
   });
 
-  it('creates a doc from markdown via Drive media upload', async () => {
+  it('creates a doc from markdown via Drive media upload when format is markdown', async () => {
     mockFilesCreate.mockResolvedValue({ data: { id: 'doc-md-1' } });
     const handler = registeredTools.get('google_docs_create')!;
 
-    const result = await handler({ title: 'MD Doc', markdown: '# Hello\n\n**bold**' }) as {
+    const result = await handler({ title: 'MD Doc', content: '# Hello\n\n**bold**', format: 'markdown' }) as {
       structuredContent: { document_id: string; web_view_link: string };
     };
 
@@ -69,15 +69,5 @@ describe('google_docs_create tool', () => {
     expect(result.structuredContent.web_view_link).toBe(
       'https://docs.google.com/document/d/doc-md-1/edit'
     );
-  });
-
-  it('rejects passing both content and markdown', async () => {
-    const handler = registeredTools.get('google_docs_create')!;
-    const result = await handler({ title: 'X', content: 'a', markdown: 'b' }) as {
-      isError?: boolean;
-      content: Array<{ text: string }>;
-    };
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/only one of/i);
   });
 });
