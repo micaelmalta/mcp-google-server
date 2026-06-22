@@ -68,7 +68,8 @@ export function startCallbackServer(): Promise<void> {
       reject(new Error(`Failed to start callback server on port ${OAUTH_CALLBACK_PORT}: ${err.message}`));
     });
 
-    _server.listen(OAUTH_CALLBACK_PORT, '127.0.0.1', () => resolve());
+    // 0.0.0.0 so Docker -p host:container can forward to this process (127.0.0.1-only rejects forwarded traffic).
+    _server.listen(OAUTH_CALLBACK_PORT, '0.0.0.0', () => resolve());
   });
 }
 
