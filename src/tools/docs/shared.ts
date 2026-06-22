@@ -38,24 +38,3 @@ export function extractTabText(tab: DocsTabInput): string {
   return lines.join('').trim();
 }
 
-export function formatDocTabs(tabs: TabData[], tabFilter?: string): string {
-  if (tabFilter) {
-    const lower = tabFilter.toLowerCase();
-    const match = tabs.find(
-      (t) => t.title.toLowerCase() === lower || t.tab_id === tabFilter
-    );
-    if (!match) {
-      const available = tabs.map((t) => `${t.title} (${t.tab_id})`).join(', ');
-      return `Tab "${tabFilter}" not found. Available tabs: ${available}`;
-    }
-    return match.text_content;
-  }
-
-  if (tabs.length === 1) {
-    return tabs[0].text_content;
-  }
-
-  return tabs
-    .map((t) => `## Tab: ${t.title}\n${t.text_content}`)
-    .join('\n\n');
-}

@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getDocs } from './shared.js';
+import { getDrive } from '../drive/shared.js';
 import { handleGoogleError } from '../../utils/errors.js';
 
 export function registerDocsCreate(server: McpServer): void {
@@ -12,30 +13,45 @@ export function registerDocsCreate(server: McpServer): void {
 
 Args:
   - title: Document title (required)
-  - content: Initial plain text content to add to the document
+  - content: Initial content (plain text or Markdown). Omit for a blank document.
+  - format: Content format — "plain" (default) or "markdown" (converts Markdown to real Doc formatting: headings, bold, lists, tables, links)
 
 Returns:
   - document_id: ID to use in google_docs_get and google_docs_append_text
   - web_view_link: URL to open the document`,
-      inputSchema: z.object({
-        title: z.string().min(1).describe('Document title.'),
-        content: z.string().optional().describe('Initial document content.'),
-      }).strict(),
+      inputSchema: z
+        .object({
+          title: z.string().min(1).describe('Document title.'),
+          content: z.string().optional().describe('Initial plain text or Markdown content.'),
+          format: z.enum(['plain', 'markdown']).optional().default('plain').describe('Content format: "plain" (default) or "markdown".'),
+        })
+        .strict(),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async ({ title, content }) => {
+    async ({ title, content, format }) => {
       try {
-        const docs = getDocs();
-        const createRes = await docs.documents.create({ requestBody: { title } });
-        const docId = createRes.data.documentId!;
+        let docId: string;
 
-        if (content) {
-          await docs.documents.batchUpdate({
-            documentId: docId,
-            requestBody: {
-              requests: [{ insertText: { location: { index: 1 }, text: content } }],
-            },
+        if (content !== undefined && format === 'markdown') {
+          const drive = getDrive();
+          const res = await drive.files.create({
+            requestBody: { name: title, mimeType: 'application/vnd.google-apps.document' },
+            media: { mimeType: 'text/markdown', body: content },
+            fields: 'id',
           });
+          docId = res.data.id!;
+        } else {
+          const docs = getDocs();
+          const createRes = await docs.documents.create({ requestBody: { title } });
+          docId = createRes.data.documentId!;
+          if (content) {
+            await docs.documents.batchUpdate({
+              documentId: docId,
+              requestBody: {
+                requests: [{ insertText: { location: { index: 1 }, text: content } }],
+              },
+            });
+          }
         }
 
         const webViewLink = `https://docs.google.com/document/d/${docId}/edit`;
