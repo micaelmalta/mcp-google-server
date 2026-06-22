@@ -275,8 +275,9 @@ On first tool use, Cursor will open a browser window for Google sign-in. After t
 | `GOOGLE_CLIENT_SECRET` | Yes      | —                                | OAuth2 Client Secret                                |
 | `TRANSPORT`            | No       | `stdio`                          | Set to `http` to run as an HTTP server              |
 | `PORT`                 | No       | `3000`                           | HTTP server port (HTTP mode only)                   |
-| `GOOGLE_REDIRECT_URI`  | No       | `http://localhost:8080/callback` | OAuth callback URL (stdio mode only)                |
-| `GOOGLE_TOKENS_PATH`   | No       | `~/.google-mcp-tokens.json`     | Where to store OAuth tokens (stdio mode only)       |
+| `GOOGLE_REDIRECT_URI`      | No       | `http://localhost:8080/callback` | OAuth callback URL (stdio mode only)                |
+| `GOOGLE_OAUTH_LISTEN_PORT` | No       | derived from redirect URI or `8080` | HTTP listen port for stdio OAuth callback (stdio mode only) |
+| `GOOGLE_TOKENS_PATH`       | No       | `~/.google-mcp-tokens.json` or `/tmp/google-mcp-tokens.json` | Where to store OAuth tokens (stdio mode only)       |
 
 ---
 

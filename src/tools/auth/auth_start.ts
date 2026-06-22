@@ -26,7 +26,7 @@ Returns:
   - message (string): Instructions for the user
 
 Note: Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.
-Note: Redirect URI must be configured as http://localhost:${OAUTH_CALLBACK_PORT}/callback in Google Cloud Console.`,
+Note: Redirect URI must match GOOGLE_REDIRECT_URI (e.g. http://localhost:${OAUTH_CALLBACK_PORT}/callback). If port 8080 is already in use, set GOOGLE_OAUTH_LISTEN_PORT to a free port and the same port in GOOGLE_REDIRECT_URI, and update Google Cloud Console accordingly.`,
       inputSchema: z.object({}).strict(),
       annotations: {
         readOnlyHint: false,

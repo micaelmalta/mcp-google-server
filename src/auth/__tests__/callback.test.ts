@@ -48,7 +48,7 @@ describe('callback', () => {
     const { startCallbackServer } = await import('../callback.js');
     await expect(startCallbackServer()).resolves.toBeUndefined();
     expect(mockCreateServer).toHaveBeenCalled();
-    expect(mockListen).toHaveBeenCalledWith(9999, '127.0.0.1', expect.any(Function));
+    expect(mockListen).toHaveBeenCalledWith(9999, '0.0.0.0', expect.any(Function));
   });
 
   it('startCallbackServer resolves immediately when server already running', async () => {
