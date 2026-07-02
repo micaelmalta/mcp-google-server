@@ -14,9 +14,10 @@ jobs:
     strategy:
       matrix:
         HELM_CHART_LOCATION: [helm/service]
-    uses: justworkshr/actions/.github/workflows/chart-validator.yml@main
+    uses: justworkshr/actions/.github/workflows/chart-validator.yml@v2
     secrets:
       JUSTWORKS_GHTOKEN: ${{ secrets.GH_PACKAGES }}
     with:
+      HELM_CHART_SOURCE: ghcr_oci
       HELM_CHART_LOCATION: ${{ matrix.HELM_CHART_LOCATION }}
       VALUES_ENVS: dev,staging,prod
