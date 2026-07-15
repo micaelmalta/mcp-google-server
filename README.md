@@ -47,7 +47,7 @@ Runs in two modes:
 
 **Option A — Run directly from GitHub (no local clone needed):**
 
-Skip this step entirely. Use `npx github:justworkshr/mcp-google-server` as the command in step 4 below. npm will download, install, and build the server automatically on first run.
+Skip this step entirely. Use `npx github:micaelmalta/mcp-google-server` as the command in step 4 below. npm will download, install, and build the server automatically on first run.
 
 **Option B — Local install:**
 
@@ -70,7 +70,7 @@ From GitHub (no local clone):
 claude mcp add google-workspace \
   --env GOOGLE_CLIENT_ID=your_client_id_here \
   --env GOOGLE_CLIENT_SECRET=your_client_secret_here \
-  -- npx -y github:justworkshr/mcp-google-server
+  -- npx -y github:micaelmalta/mcp-google-server
 ```
 
 From local install:
@@ -91,7 +91,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "google-workspace": {
       "command": "npx",
-      "args": ["-y", "github:justworkshr/mcp-google-server"],
+      "args": ["-y", "github:micaelmalta/mcp-google-server"],
       "env": {
         "GOOGLE_CLIENT_ID": "your_client_id_here",
         "GOOGLE_CLIENT_SECRET": "your_client_secret_here"
