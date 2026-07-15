@@ -9,9 +9,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: jw-ubuntu-latest-2core
-    permissions:
-      contents: read
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +27,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: jw-ubuntu-latest-2core
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
@@ -51,21 +49,3 @@ jobs:
       - name: Report coverage on PR
         if: always() && github.event_name == 'pull_request'
         uses: davelosert/vitest-coverage-report-action@v2
-
-  docker-build:
-    name: Docker Build
-    runs-on: jw-ubuntu-latest-2core
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          build-args: |
-            BUILD_TIME=${{ github.event.repository.updated_at }}
-            COMMIT_SHA=${{ github.sha }}
-            VERSION=${{ github.ref_name }}
